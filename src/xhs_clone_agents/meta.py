@@ -1,4 +1,4 @@
-"""meta-agent · 造物主 · 跟真用户对话引导造分身
+"""meta-agent · 造物主 · 跟真用户对话引导造分身 (走阿里百炼 + DeepSeek)
 
 跟普通 agent 区别:
 - 不绑 xhs user_id · 系统级
@@ -8,12 +8,13 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
-from anthropic import Anthropic
 
 from .config import settings
+from .llm import new_client, to_openai_tool
 
 
 SYSTEM_PROMPT = """你是"阿空小造" · 帮人在「分身记」平台造数字角色 (digital persona) 的 AI 引导师。
@@ -50,10 +51,6 @@ SYSTEM_PROMPT = """你是"阿空小造" · 帮人在「分身记」平台造数�
 - 不要塞行业刻板印象 (设计师就要文艺 / 程序员就要理工男)
 - 不要承诺平台没承诺的 (退款 / SLA 这些先按 service.sla_hours 走)
 """
-
-
-def _new_meta_client() -> Anthropic:
-    return Anthropic(api_key=settings.anthropic_api_key)
 
 
 META_TOOLS: list[dict[str, Any]] = [
@@ -116,7 +113,8 @@ class MetaAgent:
 
     def __init__(self, api_base_url: str | None = None):
         self.api_base = (api_base_url or settings.api_base_url).rstrip("/")
-        self.llm = _new_meta_client()
+        self.llm = new_client()
+        self.tools = [to_openai_tool(t) for t in META_TOOLS]
         self.http = httpx.Client(base_url=self.api_base, timeout=20.0, trust_env=False)
 
     def close(self) -> None:
@@ -136,7 +134,6 @@ class MetaAgent:
         r.raise_for_status()
         agent = r.json()
 
-        # 加服务包
         added_services = []
         for svc in services:
             rs = self.http.post(
@@ -159,57 +156,73 @@ class MetaAgent:
         history: [{"role": "user"|"assistant", "content": str}]
         return: {"reply": str, "created_agent_id": str | None, "done": bool}
         """
-        messages: list[dict] = list(history) + [{"role": "user", "content": new_message}]
+        messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+        for m in history:
+            role = m.get("role")
+            if role in ("user", "assistant") and m.get("content"):
+                messages.append({"role": role, "content": m["content"]})
+        messages.append({"role": "user", "content": new_message})
 
         for _ in range(4):
-            resp = self.llm.messages.create(
-                model=settings.anthropic_model,
-                max_tokens=2048,
-                system=SYSTEM_PROMPT,
-                tools=META_TOOLS,
+            resp = self.llm.chat.completions.create(
+                model=settings.llm_model,
                 messages=messages,
+                tools=self.tools,
+                max_tokens=2048,
             )
-            tool_uses = [b for b in resp.content if b.type == "tool_use"]
-            text_blocks = [b for b in resp.content if b.type == "text"]
+            msg = resp.choices[0].message
+            tool_calls = msg.tool_calls or []
 
-            if not tool_uses:
-                # 纯文本回复
-                reply = "\n".join(b.text for b in text_blocks) or "(无回复)"
+            if not tool_calls:
+                reply = (msg.content or "").strip() or "(无回复)"
                 return {"reply": reply, "created_agent_id": None, "done": False}
 
-            # 处理 tool calls
-            messages.append({"role": "assistant", "content": resp.content})
-            tool_results = []
-            created_id = None
-            done = False
-            reply_to_user = None
+            # 拼回 assistant message
+            messages.append({
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                    for tc in tool_calls
+                ],
+            })
 
-            for tu in tool_uses:
-                if tu.name == "ask_owner":
-                    reply_to_user = tu.input.get("question", "")
-                    tool_results.append({"type": "tool_result", "tool_use_id": tu.id, "content": "asked"})
-                    done = False
-                elif tu.name == "summarize_and_confirm":
-                    reply_to_user = tu.input.get("summary", "")
-                    tool_results.append({"type": "tool_result", "tool_use_id": tu.id, "content": "summarized"})
-                    done = False
-                elif tu.name == "create_user_agent":
+            reply_to_user: str | None = None
+            created_id: str | None = None
+            done = False
+
+            for tc in tool_calls:
+                name = tc.function.name
+                try:
+                    args = json.loads(tc.function.arguments or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+
+                if name == "ask_owner":
+                    reply_to_user = args.get("question", "")
+                    tool_result = "asked"
+                elif name == "summarize_and_confirm":
+                    reply_to_user = args.get("summary", "")
+                    tool_result = "summarized"
+                elif name == "create_user_agent":
                     try:
-                        result = self._create_agent_via_api(owner_id, dict(tu.input or {}))
+                        result = self._create_agent_via_api(owner_id, dict(args))
                         created_id = result["agent"]["id"]
                         reply_to_user = (
                             f"建好啦 · 你的分身「{result['agent']['name']}」已经上市场了 · ID: {created_id}\n"
                             f"配了 {len(result['services'])} 个服务包 · 你可以随时在「我的分身」里再调。"
                         )
-                        tool_results.append({"type": "tool_result", "tool_use_id": tu.id, "content": str(result)[:1000]})
+                        tool_result = json.dumps({"created": result["agent"]["id"]}, ensure_ascii=False)
                         done = True
                     except Exception as e:
-                        tool_results.append({"type": "tool_result", "tool_use_id": tu.id, "content": f"error: {e}"})
                         reply_to_user = f"建分身时出了点问题 · {e} · 我们再聊聊?"
+                        tool_result = json.dumps({"error": str(e)}, ensure_ascii=False)
+                else:
+                    tool_result = json.dumps({"error": f"unknown tool {name}"}, ensure_ascii=False)
+
+                messages.append({"role": "tool", "tool_call_id": tc.id, "content": tool_result})
 
             if reply_to_user is not None:
                 return {"reply": reply_to_user, "created_agent_id": created_id, "done": done}
-
-            messages.append({"role": "user", "content": tool_results})
 
         return {"reply": "(我有点卡住了 · 你再说一遍?)", "created_agent_id": None, "done": False}

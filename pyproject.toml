@@ -5,7 +5,7 @@ description = "xhs-clone NPC agents · 一 agent 一组文件 · 复用 agentail
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "anthropic==0.100.0",
+    "openai==2.35.1",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.46.0",
     "pydantic==2.13.4",

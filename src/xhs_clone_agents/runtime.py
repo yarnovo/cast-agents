@@ -1,13 +1,13 @@
-"""agent loop · 一次 wakeup 的完整流程"""
+"""agent loop · 一次 wakeup 的完整流程 · LLM 走阿里百炼 OpenAI 兼容协议"""
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, UTC
 from typing import Any
 
-from anthropic import Anthropic
-
 from .config import settings
+from .llm import new_client, to_openai_tool
 from .tools import TOOL_SCHEMAS, XhsClient, execute_tool
 from .workspace import Workspace, load_workspace
 
@@ -58,44 +58,67 @@ def tick(agent_name: str, trigger: dict[str, Any] | None = None) -> dict[str, An
 
     ws = load_workspace(agent_name)
     client = XhsClient(user_id=ws.user_id)
-    llm = Anthropic(api_key=settings.anthropic_api_key)
+    llm = new_client()
+    tools = [to_openai_tool(t) for t in TOOL_SCHEMAS]
 
-    system = _build_system_prompt(ws)
-    messages: list[dict] = [{"role": "user", "content": _build_user_prompt(ws, trigger or {"kind": "cron"})}]
+    messages: list[dict] = [
+        {"role": "system", "content": _build_system_prompt(ws)},
+        {"role": "user", "content": _build_user_prompt(ws, trigger or {"kind": "cron"})},
+    ]
     actions: list[dict] = []
 
     try:
         for _ in range(MAX_TURNS):
-            resp = llm.messages.create(
-                model=settings.anthropic_model,
-                max_tokens=2048,
-                system=system,
-                tools=TOOL_SCHEMAS,
+            resp = llm.chat.completions.create(
+                model=settings.llm_model,
                 messages=messages,
+                tools=tools,
+                max_tokens=2048,
             )
-            tool_uses = [b for b in resp.content if b.type == "tool_use"]
-            if not tool_uses:
+            msg = resp.choices[0].message
+            tool_calls = msg.tool_calls or []
+
+            if not tool_calls:
                 break
 
-            messages.append({"role": "assistant", "content": resp.content})
-            tool_results = []
+            # 把 assistant 消息原样拼回去 (含 tool_calls)
+            messages.append({
+                "role": "assistant",
+                "content": msg.content or "",
+                "tool_calls": [
+                    {"id": tc.id, "type": "function", "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                    for tc in tool_calls
+                ],
+            })
             stop = False
-            for tu in tool_uses:
+            for tc in tool_calls:
+                name = tc.function.name
                 try:
-                    result = execute_tool(tu.name, tu.input or {}, ws, client)
-                    actions.append({"tool": tu.name, "input": tu.input, "result": result})
-                    if tu.name == "stop_for_now":
+                    args = json.loads(tc.function.arguments or "{}")
+                except json.JSONDecodeError:
+                    args = {}
+                try:
+                    result = execute_tool(name, args, ws, client)
+                    actions.append({"tool": name, "input": args, "result": result})
+                    if name == "stop_for_now":
                         stop = True
                 except Exception as e:
-                    actions.append({"tool": tu.name, "input": tu.input, "error": str(e)})
                     result = {"error": str(e)}
-                tool_results.append({"type": "tool_result", "tool_use_id": tu.id, "content": str(result)[:4000]})
+                    actions.append({"tool": name, "input": args, "error": str(e)})
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tc.id,
+                    "content": json.dumps(result, ensure_ascii=False)[:4000],
+                })
 
-            messages.append({"role": "user", "content": tool_results})
             if stop:
                 break
     finally:
         client.close()
 
     ws.set_state(last_tick_at=datetime.now(UTC).isoformat())
-    return {"agent": agent_name, "actions": actions, "turns": len([m for m in messages if m["role"] == "assistant"])}
+    return {
+        "agent": agent_name,
+        "actions": actions,
+        "turns": sum(1 for m in messages if m.get("role") == "assistant"),
+    }
