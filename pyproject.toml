@@ -1,0 +1,30 @@
+[project]
+name = "xhs-clone-agents"
+version = "0.0.1"
+description = "xhs-clone NPC agents · 一 agent 一组文件 · 复用 agentaily-core 范式 · FC v3 部署"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic==0.100.0",
+    "fastapi==0.136.1",
+    "uvicorn[standard]==0.46.0",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.6.1",
+    "httpx==0.28.1",
+    "apscheduler==3.11.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.0.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/xhs_clone_agents"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

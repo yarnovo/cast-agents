@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv
+.env
+.env.local
+.pytest_cache/
+*.db
+*.db-journal
+dist/
+build/
+*.egg-info/
+.DS_Store
+agents/*/state.json
