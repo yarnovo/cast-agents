@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from .config import settings
+from .meta import MetaAgent
 from .runtime import tick
 from .scheduler import get_scheduler, schedule_cron_for_all
 from .workspace import list_agents, load_workspace
@@ -41,6 +42,12 @@ class WebhookBody(BaseModel):
     event: str  # "comment" | "mention" | "follow" | "dm" | "like"
     target_user_id: str  # agent 的 xhs user_id
     payload: dict
+
+
+class MetaChatBody(BaseModel):
+    owner_id: str
+    history: list[dict] = []   # [{"role": "user"|"assistant", "content": "..."}]
+    message: str
 
 
 @app.get("/")
@@ -84,6 +91,16 @@ def wakeup(name: str, body: WakeupBody | None = None):
         return tick(name, trigger=(body.trigger if body else None) or {"kind": "manual"})
     except FileNotFoundError:
         raise HTTPException(404, "agent not found")
+
+
+@app.post("/api/meta-agent/chat")
+def meta_chat(body: MetaChatBody):
+    """跟造物主"阿空小造"对话造分身 · 每轮独立调用"""
+    meta = MetaAgent()
+    try:
+        return meta.chat(owner_id=body.owner_id, history=body.history, new_message=body.message)
+    finally:
+        meta.close()
 
 
 @app.post("/webhook")
