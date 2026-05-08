@@ -48,7 +48,7 @@ from akong_skills import default_registry as default_skill_registry
 from akong_tools import Tools
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from meta_hermes import sync_meta
+from meta_hermes import sync_meta, sync_to_cast_api_hermes_table
 from pydantic import BaseModel
 
 from .config import settings
@@ -79,6 +79,19 @@ async def lifespan(app: FastAPI):
                 print(f"[meta-hermes] error: {err}")
     except Exception as e:  # noqa: BLE001 · 启动钩子不能 crash
         print(f"[meta-hermes] FATAL: {type(e).__name__}: {e}")
+
+    # 1b. 同步 meta hermes 行 (老板 5-9 拍 · best-effort · cast-api 没 hermes 表 → 跳过)
+    try:
+        hermes_result = sync_to_cast_api_hermes_table(settings.api_base_url)
+        print(
+            f"[meta-hermes] sync hermes hermes_id={hermes_result['hermes_id']} "
+            f"status={hermes_result['status']} errors={len(hermes_result.get('errors') or [])}"
+        )
+        if hermes_result.get("errors"):
+            for err in hermes_result["errors"]:
+                print(f"[meta-hermes] hermes error: {err}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[meta-hermes] hermes sync skipped: {type(e).__name__}: {e}")
 
     # 2. demo-agents · 可选
     if INSTALL_DEMO:
