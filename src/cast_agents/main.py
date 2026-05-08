@@ -29,6 +29,12 @@ import cast_platform_tools  # noqa: F401
 
 # import meta-hermes 即触发 3 个 meta.* tool 注册 (meta.create_agent / list_agents / update_agent)
 import meta_hermes  # noqa: F401
+from akong_hermes import (
+    DynamicHermesLoader,
+    Hermes,
+    SkillResolver,
+    ToolResolver,
+)
 from akong_llm import LLMError, OpenAICompatibleClient
 from akong_memory import RdsAdapter
 from akong_runtime import (
@@ -42,7 +48,7 @@ from akong_skills import default_registry as default_skill_registry
 from akong_tools import Tools
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from meta_hermes import sync_meta
+from meta_hermes import sync_meta, sync_to_cast_api_hermes_table
 from pydantic import BaseModel
 
 from .config import settings
@@ -73,6 +79,19 @@ async def lifespan(app: FastAPI):
                 print(f"[meta-hermes] error: {err}")
     except Exception as e:  # noqa: BLE001 · 启动钩子不能 crash
         print(f"[meta-hermes] FATAL: {type(e).__name__}: {e}")
+
+    # 1b. 同步 meta hermes 行 (老板 5-9 拍 · best-effort · cast-api 没 hermes 表 → 跳过)
+    try:
+        hermes_result = sync_to_cast_api_hermes_table(settings.api_base_url)
+        print(
+            f"[meta-hermes] sync hermes hermes_id={hermes_result['hermes_id']} "
+            f"status={hermes_result['status']} errors={len(hermes_result.get('errors') or [])}"
+        )
+        if hermes_result.get("errors"):
+            for err in hermes_result["errors"]:
+                print(f"[meta-hermes] hermes error: {err}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[meta-hermes] hermes sync skipped: {type(e).__name__}: {e}")
 
     # 2. demo-agents · 可选
     if INSTALL_DEMO:
@@ -192,6 +211,43 @@ def _fetch_agent_record(agent_id: str, *, timeout: float = 10.0) -> dict[str, An
     return resp.json()
 
 
+def _agent_def_from_hermes(hermes: Hermes, rec: dict[str, Any]) -> AgentDef:
+    """Hermes (akong-hermes) → harness AgentDef · skills 用 hermes resolved · 兼容 rec.metadata。
+
+    rec 是 cast-api agents row · 仍旧需要拿 tagline / metadata extras (rules_json 等)。
+    skills 优先用 hermes.skills (resolver 解出的 sop) · 兜底到 rec.skills。
+    """
+    meta = rec.get("metadata_json")
+    if isinstance(meta, str):
+        try:
+            import json as _json
+            meta = _json.loads(meta)
+        except (ValueError, TypeError):
+            meta = {}
+    if not isinstance(meta, dict):
+        meta = {}
+
+    # hermes.skills 是 SkillRef list · runtime.AgentDef.skills 期望 str list (skill name)
+    # 取 SkillRef.static_ref 的 :: 后半 · 或 dynamic skill_id · 让老 skill_registry 路径继续走
+    skill_names: list[str] = []
+    for ref in hermes.skills:
+        if ref.kind == "static" and ref.static_ref:
+            skill_names.append(ref.static_ref.split("::", 1)[-1])
+        elif ref.kind == "dynamic" and ref.skill_id:
+            skill_names.append(ref.skill_id)
+
+    return AgentDef(
+        id=rec["id"],
+        name=hermes.name or rec.get("name") or "",
+        tagline=rec.get("tagline") or "",
+        soul=hermes.soul or rec.get("soul") or "",
+        playbook=hermes.playbook or rec.get("playbook") or "",
+        style=hermes.style or rec.get("style") or "",
+        skills=skill_names,
+        metadata=meta,
+    )
+
+
 def _agent_def_from_record(rec: dict[str, Any]) -> AgentDef:
     """cast-api agent row → harness AgentDef · 兼容 metadata_json (可能 str / dict)"""
     meta = rec.get("metadata_json")
@@ -244,7 +300,21 @@ async def agent_run(req: RunRequest) -> dict[str, Any]:
     """
     # 1. agent row → AgentDef
     record = _fetch_agent_record(req.agent_id)
-    agent = _agent_def_from_record(record)
+
+    # 1b. 优先走新 hermes loader (老板 5-9 拍) · 失败兜底老路径
+    agent: AgentDef
+    try:
+        async with DynamicHermesLoader(settings.api_base_url) as hermes_loader:
+            hermes = await hermes_loader.load_by_agent_id(req.agent_id)
+        agent = _agent_def_from_hermes(hermes, record)
+        print(f"[hermes] /api/agent/run {req.agent_id} loaded hermes={hermes.id} static_ref={hermes.static_ref}")
+    except KeyError:
+        # 该 agent 还没 hermes 行 (过渡期) · 走老路径
+        agent = _agent_def_from_record(record)
+        print(f"[hermes] /api/agent/run {req.agent_id} no hermes row · fallback to record")
+    except Exception as e:  # noqa: BLE001 · loader 失败不能 crash
+        print(f"[hermes] WARN: load_by_agent_id failed: {type(e).__name__}: {e} · fallback to record")
+        agent = _agent_def_from_record(record)
 
     # 2. session (cast-api chat_messages)
     session = RdsSession(
