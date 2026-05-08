@@ -117,7 +117,7 @@ wheels = [
 
 [[package]]
 name = "cast-agents"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "akong-llm" },
@@ -129,14 +129,21 @@ dependencies = [
     { name = "cast-platform-tools" },
     { name = "fastapi" },
     { name = "httpx" },
+    { name = "meta-hermes" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "pyyaml" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
+[package.optional-dependencies]
+demo = [
+    { name = "demo-agents" },
+]
+
 [package.dev-dependencies]
 dev = [
+    { name = "demo-agents" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-mock" },
@@ -151,16 +158,20 @@ requires-dist = [
     { name = "akong-skills", git = "https://github.com/yarnovo/akong-skills.git?rev=main" },
     { name = "akong-tools", git = "https://github.com/yarnovo/akong-tools.git?rev=main" },
     { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main" },
+    { name = "demo-agents", marker = "extra == 'demo'", git = "https://github.com/yarnovo/demo-agents.git?rev=main" },
     { name = "fastapi", specifier = "==0.136.1" },
     { name = "httpx", specifier = ">=0.27" },
+    { name = "meta-hermes", git = "https://github.com/yarnovo/meta-hermes.git?rev=main" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pydantic-settings", specifier = "==2.6.1" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.46.0" },
 ]
+provides-extras = ["demo"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "demo-agents", git = "https://github.com/yarnovo/demo-agents.git?rev=main" },
     { name = "pytest", specifier = "==9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.0.0,<2.0.0" },
     { name = "pytest-mock", specifier = "==3.15.1" },
@@ -203,6 +214,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697, upload-time = "2022-10-25T02:36:22.414Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335, upload-time = "2022-10-25T02:36:20.889Z" },
+]
+
+[[package]]
+name = "demo-agents"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/demo-agents.git?rev=main#100c2ce08faafc0595fbf25c4f324e0193ed6789" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pyyaml" },
 ]
 
 [[package]]
@@ -368,6 +388,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/97/f8/33d78c83bd93ae0c0af05293a6660f88a1977caef39a6d72a84afab94ce0/jiter-0.14.0-cp314-cp314t-win32.whl", hash = "sha256:2f7877ed45118de283786178eceaf877110abacd04fde31efff3940ae9672674", size = 207957, upload-time = "2026-04-10T14:27:59.285Z" },
     { url = "https://files.pythonhosted.org/packages/d6/ac/2b760516c03e2227826d1f7025d89bf6bf6357a28fe75c2a2800873c50bf/jiter-0.14.0-cp314-cp314t-win_amd64.whl", hash = "sha256:14c0cb10337c49f5eafe8e7364daca5e29a020ea03580b8f8e6c597fed4e1588", size = 204690, upload-time = "2026-04-10T14:28:00.962Z" },
     { url = "https://files.pythonhosted.org/packages/dc/2e/a44c20c58aeed0355f2d326969a181696aeb551a25195f47563908a815be/jiter-0.14.0-cp314-cp314t-win_arm64.whl", hash = "sha256:5419d4aa2024961da9fe12a9cfe7484996735dca99e8e090b5c88595ef1951ff", size = 191338, upload-time = "2026-04-10T14:28:02.853Z" },
+]
+
+[[package]]
+name = "meta-hermes"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/meta-hermes.git?rev=main#2219b733c1250ece6bd05a0e265f7d3f2670c52c" }
+dependencies = [
+    { name = "akong-tools" },
+    { name = "httpx" },
+    { name = "pyyaml" },
 ]
 
 [[package]]

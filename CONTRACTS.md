@@ -14,8 +14,9 @@
 | `akong-tools` (git@main) | Python lib | `from akong_tools import Tools, ToolSpec, all_registered_tools` (test) · `register_tool` 注册中心被 cast-platform-tools 用 | `Tools.connect` 签名变 / registry API 变 → 本仓 + cast-tools 同步 |
 | `akong-skills` (git@main) | Python lib | `from akong_skills import default_registry as default_skill_registry` | skill registry 工厂签名变 → 本仓 `main.py` 同步 |
 | `cast-platform-tools` (git@main) | Python lib · import 即 register tool | `import cast_platform_tools` 触发 `register_tool("cast.post" / "cast.send_dm" / "cast.like_post" / "cast.follow_user" / "cast.create_agent")` | 5 tool 名字 / 签名 / 注册时机变 → 本仓 `test_main_smoke.py` 失败 |
-| `cast-api` (https://api.cast.agentaily.com · prod / staging.api.cast.agentaily.com) | HTTP | `GET /api/agents/{id}` (拉 agent row · 喂 AgentDef) · `POST/GET/DELETE /api/chat_messages` (RdsSession 持久化 · session_id sticky) · `POST /api/agents` 等 (builtin sync) | 任一 endpoint 删 / shape 改 · 本仓 endpoint 全挂 (尤其 `/api/agent/run` · `/api/agent/tick` · 启动 lifespan builtin sync) |
-| `cast-builtin-agents` (git@main) | YAML 真源 · build context | Dockerfile COPY · `BUILTIN_DIR` env override | 改 yaml schema → builtin_sync.py 同步改 |
+| `cast-api` (https://api.cast.agentaily.com · prod / staging.api.cast.agentaily.com) | HTTP | `GET /api/agents/{id}` (拉 agent row · 喂 AgentDef) · `POST/GET/DELETE /api/chat_messages` (RdsSession 持久化 · session_id sticky) · `POST /api/agents` 等 (meta-hermes / demo-agents sync) | 任一 endpoint 删 / shape 改 · 本仓 endpoint 全挂 (尤其 `/api/agent/run` · `/api/agent/tick` · 启动 lifespan sync) |
+| `meta-hermes` (git@main) | Python lib · import 即 register tool + sync_meta | `import meta_hermes` 触发 `register_tool("meta.create_agent" / "meta.list_agents" / "meta.update_agent")` · `meta_hermes.sync_meta(api_base_url)` lifespan 调 | 3 个 meta.* tool 名 / sync_meta 签名变 → 本仓 `main.py` + `test_main_smoke.py` 同步 |
+| `demo-agents` (git@main · **可选** [demo] extra) | Python lib · `sync_demo_agents` | env `CAST_INSTALL_DEMO_AGENTS=1` 时 lifespan 调 `demo_agents.sync_demo_agents(api_base_url)` | 装包但 env 不 set 时不调 sync · prod 默认不装 |
 | LLM provider (DashScope · OpenAI 兼容) | HTTP | `OpenAICompatibleClient(base_url=AKONG_LLM_BASE_URL, model=AKONG_LLM_MODEL, api_key=AKONG_LLM_API_KEY)` | API key revoke / endpoint 切 · 改 FC 函数 env 变量 |
 
 ## 2. 下游 (调本仓的)
@@ -45,7 +46,7 @@ POST /api/agent/run     body  { agent_id: str, session_id: str, user_message: st
 | `AKONG_LLM_BASE_URL` | `https://dashscope.aliyuncs.com/compatible-mode/v1` | LLM provider OpenAI 兼容 endpoint |
 | `AKONG_LLM_MODEL` | `deepseek-v3.1` | LLM 模型名 |
 | `AKONG_API_BASE_URL` (老) / `API_BASE_URL` (新) | `https://api.cast.agentaily.com` | cast-api endpoint · `settings.api_base_url` 读 |
-| `CAST_BUILTIN_AGENTS_DIR` | `/app/cast-builtin-agents` (容器内) / `~/.claude/repos/cast/builtin-agents` (dev) | builtin agent yaml 真源 |
+| `CAST_INSTALL_DEMO_AGENTS` | `0` (prod) / `1` (staging) | `=1` 时 lifespan 调 `demo_agents.sync_demo_agents` 灌 7 demo · 否则只 sync meta |
 | `ENV` | `prod` | 环境标记 (lifespan log 出来) |
 
 ## 5. 测试桩 (本仓 mock 上游的 pattern)
@@ -62,3 +63,5 @@ POST /api/agent/run     body  { agent_id: str, session_id: str, user_message: st
 - 改 `RdsSession` 构造参数 → akong-session 升级要看 session.py 签名
 - 改 cast-api endpoint URL → 同步 README + .env.example + GHA workflow env
 - 砍 `/api/agent/tick` 路由 → cast-app /create 页 500 (P0 · 须等 cast-app 切完)
+- 改 `meta-hermes` 版本 / API → 本仓 lifespan + test_main_smoke.py 一起改
+- 改 `demo-agents` 版本 / 7 个 yaml → cast-app 显示的 demo agent 列表跟着变
