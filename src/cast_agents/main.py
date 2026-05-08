@@ -87,8 +87,19 @@ def agent_tick(body: TickBody) -> dict[str, Any]:
 
     返 TickResult dict (actions / messages / next_wakeup / stopped / error)。
     """
+    import traceback
     trig = Trigger(kind=body.trigger.get("kind", "manual"), payload=body.trigger.get("payload"))
-    result = tick(body.agent_id, trig, api_base_url=settings.api_base_url)
+    try:
+        result = tick(body.agent_id, trig, api_base_url=settings.api_base_url)
+    except Exception as e:  # noqa: BLE001 · debug 暴露 stacktrace
+        return {
+            "error": f"{type(e).__name__}: {e}",
+            "trace": traceback.format_exc().split("\n")[-12:],
+            "actions": [],
+            "messages": [],
+            "next_wakeup": None,
+            "stopped": True,
+        }
     return {
         "actions": result.actions,
         "messages": result.messages,
