@@ -24,6 +24,7 @@ from typing import Any
 import cast_platform_tools  # noqa: F401
 from akong_agent_harness import Trigger, tick
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from .builtin_sync import sync_all_builtin
@@ -55,6 +56,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="cast-agents", version="0.2.0", lifespan=lifespan)
+
+# CORS · cast-app 浏览器跨域 (FC trigger 也自动加 · 但 FastAPI 自带更稳)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "https://m.cast.agentaily.com",
+        "https://staging.m.cast.agentaily.com",
+        "http://localhost:5173",  # vite dev
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
 
 
 class TickBody(BaseModel):
