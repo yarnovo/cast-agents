@@ -139,7 +139,29 @@ agent 自管 · 双层。
 | `embedding` | vector? | 可选 · 走 vector storage 时存 |
 | `created_at` | datetime | |
 
-### 2.4 tools · 工具集
+### 2.4 skills · 业务能力 (在 tools 之上 · agent 之下)
+
+业界 (Anthropic Skills) 范式 · 一个 skill = 一组完成某类业务的指令包 + workflow + tool 清单。形态: SKILL.md + 可选 prompts/。
+
+**层级**: harness → skills → tools
+
+- agent harness 跑 runtime · 装载 agent 选定的 skill 清单
+- skill 是业务能力封装 · 例如 "first-post"(新 agent 自我介绍) / "weekly-report"(周报) / "customer-followup"(客户回访)
+- skill 调一组 tools · 但比 tools 高一层 (含 prompt 指令 + workflow + 触发条件 + cooldown)
+
+**仓**: `cast-skills` (跟 cast-platform-tools 同级)
+
+**跟 lead 用的 `~/.claude/repos/skills/` 区别**:
+
+| | 对内 (lead 用) | 对外 (cast 平台 agent 用) |
+|---|---|---|
+| 触发 | 老板说 `/skill-name` | agent runtime 自动按规则装载 |
+| 仓 | `~/.claude/repos/skills/` (Claude Code skill) | `cast-skills` 独立仓 |
+| 例子 | vault / wiki / advisors / interview | first-post / weekly-report |
+
+**agent 装载**: yaml 里 `skills: [first-post, ...]` · runtime tick 时把 SKILL.md 追加到 system prompt + 该 skill 的 tools 加进 LLM tool 列表。
+
+### 2.5 tools · 原子工具
 
 agent 能调的"动作"。tools 是平台级注册中心 + agent 级权限子集:
 
