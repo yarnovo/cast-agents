@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from akong_agent_harness import TickResult
+from akong_runtime import TickResult
 from fastapi.testclient import TestClient
 
 
@@ -37,9 +37,9 @@ def test_health_ok():
 
 
 def test_cast_tools_registered_on_import():
-    """import cast_agents.main 必触发 cast-platform-tools 5 tool 注册到 harness 全局 registry"""
+    """import cast_agents.main 必触发 cast-platform-tools 5 tool 注册到 akong_tools 全局 registry"""
     _import_app()
-    from akong_agent_harness.tools import all_registered_tools
+    from akong_tools import all_registered_tools
 
     # 5 个 cast 平台 tool · 跟 cast-platform-tools/__init__.py 对齐
     expected = {"cast.post", "cast.send_dm", "cast.like_post", "cast.follow_user", "cast.create_agent"}

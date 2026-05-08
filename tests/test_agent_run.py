@@ -15,9 +15,9 @@ from typing import Any
 
 import httpx
 import pytest
-from akong_agent_harness import RdsSession, Tools
-from akong_agent_harness.llm import ChatResponse, LLMError, ToolCall, Usage
-from akong_agent_harness.tools import ToolSpec
+from akong_llm import ChatResponse, LLMError, ToolCall, Usage
+from akong_session import RdsSession
+from akong_tools import ToolSpec, Tools
 from fastapi.testclient import TestClient
 
 

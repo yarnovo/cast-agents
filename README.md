@@ -1,6 +1,8 @@
 # cast-agents
 
-Cast 平台 agent 后端**装配商** · 把 `akong-agent-harness` (通用 runtime) + `cast-platform-tools` (cast 5 tool) 拼成 FastAPI 服务 · FC v3 部署。
+Cast 平台 agent 后端**装配商** · 直装 `akong-runtime` + 5 utility 仓 (akong-llm/session/memory/tools/skills) + `cast-platform-tools` (cast 5 tool) · 拼成 FastAPI 服务 · FC v3 部署。
+
+> 老板 5-9 拍: 砍掉 `akong-agent-harness` meta-package · 直接装拆出来的 8 仓 · 不再走 re-export 兼容层。
 
 ## 定位
 
@@ -8,7 +10,12 @@ cast-agents 仓本身**不是** agent runtime 真源 · 也不写业务 prompt�
 
 | 关注点 | 仓 |
 |---|---|
-| agent runtime / tick 主循环 / LLM 调用 / 6 件套加载 | [`akong-agent-harness`](https://github.com/yarnovo/akong-agent-harness) |
+| agent runtime / tick / run 主循环 | [`akong-runtime`](https://github.com/yarnovo/akong-runtime) |
+| LLM provider (OpenAI-compatible / Anthropic) | [`akong-llm`](https://github.com/yarnovo/akong-llm) |
+| RDS chat session 持久化 | [`akong-session`](https://github.com/yarnovo/akong-session) |
+| RDS 长期记忆 | [`akong-memory`](https://github.com/yarnovo/akong-memory) |
+| tool registry + builtin tools | [`akong-tools`](https://github.com/yarnovo/akong-tools) |
+| skill (SKILL.md) 加载 | [`akong-skills`](https://github.com/yarnovo/akong-skills) |
 | cast 平台 5 个 tool (post / dm / like / follow / create_agent) | [`cast-platform-tools`](https://github.com/yarnovo/cast-platform-tools) |
 | FastAPI 路由 + FC 部署 + 配置装配 | 本仓 |
 
@@ -99,11 +106,16 @@ src/cast_agents/
 
 ### 依赖装载 (git source 默认 · path source 仅 dev)
 
-`pyproject.toml` 当前默认用 **git source** (CI / Docker / 任何 build 环境都可拉):
+`pyproject.toml` 当前默认用 **git source** (CI / Docker / 任何 build 环境都可拉) · 直装 8 仓拆分后的子仓:
 
 ```toml
 [project.dependencies]
-akong-agent-harness = "git+https://github.com/yarnovo/akong-agent-harness.git@main"
+akong-runtime = "git+https://github.com/yarnovo/akong-runtime.git@main"
+akong-llm     = "git+https://github.com/yarnovo/akong-llm.git@main"
+akong-session = "git+https://github.com/yarnovo/akong-session.git@main"
+akong-memory  = "git+https://github.com/yarnovo/akong-memory.git@main"
+akong-tools   = "git+https://github.com/yarnovo/akong-tools.git@main"
+akong-skills  = "git+https://github.com/yarnovo/akong-skills.git@main"
 cast-platform-tools = "git+https://github.com/yarnovo/cast-platform-tools.git@main"
 ```
 
@@ -111,12 +123,14 @@ cast-platform-tools = "git+https://github.com/yarnovo/cast-platform-tools.git@ma
 
 ```toml
 [tool.uv.sources]
-akong-agent-harness = { path = "../../akong/agent-harness", editable = true }
+akong-runtime = { path = "../../akong/runtime", editable = true }
+akong-llm     = { path = "../../akong/llm", editable = true }
+# ... 其他子仓同
 cast-platform-tools = { path = "../tools", editable = true }
 ```
 
-> 注: `cast/tools` 仓自己的 `pyproject.toml` 也引 `akong-agent-harness` ·
-> 改源时两仓要同步切 · 否则消费方 (本仓) 拉它会撞反向解析错误。
+> 注: `cast/tools` 仓 `pyproject.toml` 直装 `akong-tools` (跟本仓 `akong-tools` 同源) ·
+> 改源时两仓要同步切。
 
 ### cast/builtin-agents 跨平台 yaml
 
