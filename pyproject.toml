@@ -5,19 +5,13 @@ description = "Cast 平台 agent 后端装配商 · 装 akong-agent-harness + ca
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "akong-agent-harness",
-    "cast-platform-tools",
+    "akong-agent-harness @ git+https://github.com/yarnovo/akong-agent-harness.git@main",
+    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@main",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.46.0",
     "pydantic==2.13.4",
     "pydantic-settings==2.6.1",
 ]
-
-[tool.uv.sources]
-# 本地 dev 用 path source (sibling 布局: ~/.claude/repos/agent/{harness,tools})
-# CI / Docker build 改 git source (cast-platform-tools 仓 pyproject 同步改) · 见 README.md §部署
-akong-agent-harness = { path = "../../agent/akong-agent-harness", editable = true }
-cast-platform-tools = { path = "../../agent/cast-platform-tools", editable = true }
 
 [dependency-groups]
 dev = [
@@ -31,6 +25,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/cast_agents"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
