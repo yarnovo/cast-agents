@@ -28,9 +28,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone akong-agent-base v0.2
-        run: |
-          git clone --depth 1 --branch v0.2.0 https://github.com/yarnovo/akong-agent-base.git akong-agent-base
 
       - name: Clone cast-skills (build context · 容器内 SKILL.md 真源)
         run: |

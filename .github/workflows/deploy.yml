@@ -1,7 +1,7 @@
 name: deploy
 # cast-agents · prod FC v3 Custom Container · ACR 部署 (老板 5-7 切回容器镜像 · 替 ZIP)
 #
-# 流程: clone akong-agent-base → docker build → push ACR → fc PUT custom-container
+# 流程: docker build → push ACR → fc PUT custom-container
 # 凭证: ACR_USERNAME / ACR_PASSWORD / ALIYUN_AK / ALIYUN_SK / DASHSCOPE_API_KEY (+ agent specific)
 
 on:
@@ -31,10 +31,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone akong-agent-base v0.2 (build context sibling)
-        run: |
-          git clone --depth 1 --branch v0.2.0 https://github.com/yarnovo/akong-agent-base.git akong-agent-base
-          ls akong-agent-base
 
       - name: Clone cast-skills (build context · 容器内 SKILL.md 真源)
         run: |
