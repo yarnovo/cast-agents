@@ -150,7 +150,7 @@ requires-dist = [
     { name = "akong-session", git = "https://github.com/yarnovo/akong-session.git?rev=main" },
     { name = "akong-skills", git = "https://github.com/yarnovo/akong-skills.git?rev=main" },
     { name = "akong-tools", git = "https://github.com/yarnovo/akong-tools.git?rev=main" },
-    { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=feat%2Fdirect-import-tools" },
+    { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main" },
     { name = "fastapi", specifier = "==0.136.1" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = "==2.13.4" },
@@ -169,7 +169,7 @@ dev = [
 [[package]]
 name = "cast-platform-tools"
 version = "0.2.0"
-source = { git = "https://github.com/yarnovo/cast-platform-tools.git?rev=feat%2Fdirect-import-tools#124899820f8855d1286b265f5b97140773a26a6f" }
+source = { git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main#17af9877ccff50f9db9ec24fa008b58d2b19febd" }
 dependencies = [
     { name = "akong-tools" },
     { name = "httpx" },

@@ -11,7 +11,7 @@ dependencies = [
     "akong-memory @ git+https://github.com/yarnovo/akong-memory.git@main",
     "akong-tools @ git+https://github.com/yarnovo/akong-tools.git@main",
     "akong-skills @ git+https://github.com/yarnovo/akong-skills.git@main",
-    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@feat/direct-import-tools",
+    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@main",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.46.0",
     "pydantic==2.13.4",
