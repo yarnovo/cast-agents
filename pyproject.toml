@@ -1,7 +1,7 @@
 [project]
 name = "cast-agents"
-version = "0.2.0"
-description = "Cast 平台 agent 后端装配商 · 直装 akong-runtime + 5 utility + cast-platform-tools · FC v3 部署 (老板 5-9 拍 砍 meta-package)"
+version = "0.3.0"
+description = "Cast 平台 agent 后端装配商 · 直装 akong-runtime + 5 utility + cast-platform-tools + meta-hermes · FC v3 部署 (老板 5-9 拍 拆 meta-hermes / demo-agents)"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -12,6 +12,7 @@ dependencies = [
     "akong-tools @ git+https://github.com/yarnovo/akong-tools.git@main",
     "akong-skills @ git+https://github.com/yarnovo/akong-skills.git@main",
     "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@main",
+    "meta-hermes @ git+https://github.com/yarnovo/meta-hermes.git@main",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.46.0",
     "pydantic==2.13.4",
@@ -20,11 +21,20 @@ dependencies = [
     "httpx>=0.27",
 ]
 
+[project.optional-dependencies]
+# demo-agents · 7 demo / 种子 agent · prod 默认不装 · staging / dev 显式 opt-in
+# 装法: uv sync --extra demo · 跑法: env CAST_INSTALL_DEMO_AGENTS=1 (lifespan 才 sync)
+demo = [
+    "demo-agents @ git+https://github.com/yarnovo/demo-agents.git@main",
+]
+
 [dependency-groups]
 dev = [
     "pytest==9.0.3",
     "pytest-mock==3.15.1",
     "pytest-asyncio>=1.0.0,<2.0.0",
+    # dev 默认装 demo-agents · 跑可选 sync 路径单测
+    "demo-agents @ git+https://github.com/yarnovo/demo-agents.git@main",
 ]
 
 [build-system]

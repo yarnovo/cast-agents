@@ -83,11 +83,13 @@ uv run pytest -v
 
 ```
 src/cast_agents/
-├── main.py        FastAPI app · 4 endpoint (/, /health, /api/agent/tick, /api/agent/run)
-├── builtin_sync.py cast/builtin-agents/*.yaml → cast-api agents 表 (lifespan 启动钩子)
-├── config.py      pydantic-settings · api_base_url + env (LLM env 由 harness 自己读)
+├── main.py    FastAPI app · 4 endpoint (/, /health, /api/agent/tick, /api/agent/run)
+│              · lifespan 调 meta_hermes.sync_meta (必装) + 可选 demo_agents.sync_demo_agents
+├── config.py  pydantic-settings · api_base_url + env (LLM env 由 harness 自己读)
 └── __init__.py
 ```
+
+> 老板 5-9 拍拆仓 · `builtin_sync.py` 已砍 · 改成 import `meta_hermes` (必装) + `demo_agents` (可选 extra)。
 
 上下游契约见 [`CONTRACTS.md`](CONTRACTS.md)。
 
@@ -117,6 +119,10 @@ akong-memory  = "git+https://github.com/yarnovo/akong-memory.git@main"
 akong-tools   = "git+https://github.com/yarnovo/akong-tools.git@main"
 akong-skills  = "git+https://github.com/yarnovo/akong-skills.git@main"
 cast-platform-tools = "git+https://github.com/yarnovo/cast-platform-tools.git@main"
+meta-hermes   = "git+https://github.com/yarnovo/meta-hermes.git@main"
+
+[project.optional-dependencies]
+demo = ["demo-agents @ git+https://github.com/yarnovo/demo-agents.git@main"]
 ```
 
 本地 dev 想 editable: 改 `pyproject.toml` 加 `[tool.uv.sources]` 指向 sibling:
@@ -132,13 +138,22 @@ cast-platform-tools = { path = "../tools", editable = true }
 > 注: `cast/tools` 仓 `pyproject.toml` 直装 `akong-tools` (跟本仓 `akong-tools` 同源) ·
 > 改源时两仓要同步切。
 
-### cast/builtin-agents 跨平台 yaml
+### meta-hermes (必装) + demo-agents (可选)
 
-builtin-agents 真源 = `~/.claude/repos/cast/builtin-agents/` (跨平台 · 本仓不持有)。
+老板 5-9 拍 · 老 `cast-builtin-agents` 仓已 archive · 拆成两个独立仓:
 
-容器内由 Dockerfile COPY 进 `/app/cast-builtin-agents` · 通过 env `CAST_BUILTIN_AGENTS_DIR` 找到。dev 本地走 `~/.claude/repos/cast/builtin-agents/` fallback。
+| 仓 | 是啥 | 装法 | lifespan 行为 |
+|---|---|---|---|
+| `meta-hermes` | meta agent (阿空小造) 静态 hermes + 3 个 meta.* tool 实现 | **必装** (主依赖) | 启动必调 `sync_meta` 灌 `ag_builtin_meta-xiaozao` |
+| `demo-agents` | 7 个 demo / 种子 agent yaml | **可选** (`uv sync --extra demo`) | env `CAST_INSTALL_DEMO_AGENTS=1` 时调 `sync_demo_agents` |
 
-CI build 时需 GHA workflow 单独 clone cast-builtin-agents 仓进 build context (lead 后续起独立 GitHub 仓 + 配 GH_TOKEN)。
+环境策略:
+
+| 环境 | meta-hermes | demo-agents | 装包 (Dockerfile ARG) | env 控制 |
+|---|---|---|---|---|
+| prod | ✓ | ✗ | `INSTALL_DEMO=0` | `CAST_INSTALL_DEMO_AGENTS=0` |
+| staging | ✓ | ✓ | `INSTALL_DEMO=1` | `CAST_INSTALL_DEMO_AGENTS=1` |
+| dev | ✓ | ✓ (默认装) | n/a | 看本地 env |
 
 env (FC 函数 env 配):
 
@@ -147,4 +162,5 @@ AKONG_LLM_API_KEY=$DASHSCOPE_API_KEY  # 来自 vault DashScope key
 AKONG_LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AKONG_LLM_MODEL=deepseek-v3.1
 AKONG_API_BASE_URL=https://api.cast.agentaily.com  # cast-api endpoint
+CAST_INSTALL_DEMO_AGENTS=0                          # =1 时 lifespan 灌 7 demo (staging 默认 1 · prod 默认 0)
 ```

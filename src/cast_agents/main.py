@@ -20,13 +20,15 @@ from __future__ import annotations
 import os
 import traceback
 from contextlib import asynccontextmanager
-from pathlib import Path
 from typing import Any
 
 import httpx
 
 # import 本模块即触发 5 个 cast 平台 tool 注册到 akong_tools 全局 registry
 import cast_platform_tools  # noqa: F401
+
+# import meta-hermes 即触发 3 个 meta.* tool 注册 (meta.create_agent / list_agents / update_agent)
+import meta_hermes  # noqa: F401
 from akong_llm import LLMError, OpenAICompatibleClient
 from akong_memory import RdsAdapter
 from akong_runtime import (
@@ -40,48 +42,62 @@ from akong_skills import default_registry as default_skill_registry
 from akong_tools import Tools
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from meta_hermes import sync_meta
 from pydantic import BaseModel
 
-from .builtin_sync import sync_all_builtin
 from .config import settings
 
 
-# cast/builtin-agents/*.yaml 目录 · 跨平台真源 (~/.claude/repos/cast/builtin-agents/)
-# 容器内由 Dockerfile COPY 进 /app/cast-builtin-agents · 通过 env override
-# dev 本地默认 fallback 到 ~/.claude/repos/cast/builtin-agents (sibling 布局)
-_DEV_FALLBACK = Path.home() / ".claude" / "repos" / "akong" / "builtin-agents"
-_CONTAINER_PATH = Path("/app/cast-builtin-agents")
-BUILTIN_DIR = Path(
-    os.environ.get("CAST_BUILTIN_AGENTS_DIR")
-    or (str(_CONTAINER_PATH) if _CONTAINER_PATH.exists() else str(_DEV_FALLBACK))
-)
-
-# 本仓 = cast 平台消费方 · sync_all_builtin 用 consumer="cast" 过滤跨平台 yaml
-CONSUMER = "cast"
+# demo-agents 是可选依赖 · 装上才能 import (生产默认不装)
+# env CAST_INSTALL_DEMO_AGENTS=1 时 lifespan 调 sync · 否则 import 也不调 sync
+INSTALL_DEMO = os.environ.get("CAST_INSTALL_DEMO_AGENTS") == "1"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动钩子: 扫 cast/builtin-agents/*.yaml · sync 到 cast-api agents 表 (架构 §D-4)"""
-    if BUILTIN_DIR.exists():
+    """启动钩子: 灌 meta agent (必装) + 可选灌 demo agents (env opt-in)。
+
+    老板 5-9 拍拆仓:
+      - 静态 hermes (meta-hermes) · 必装 · 平台核心入口
+      - demo / 种子 agent (demo-agents) · 默认不装 · CAST_INSTALL_DEMO_AGENTS=1 才装
+    """
+    # 1. meta-hermes · 必装
+    try:
+        meta_result = sync_meta(settings.api_base_url)
+        print(
+            f"[meta-hermes] sync agent_id={meta_result['agent_id']} "
+            f"status={meta_result['status']} errors={len(meta_result.get('errors') or [])}"
+        )
+        if meta_result.get("errors"):
+            for err in meta_result["errors"]:
+                print(f"[meta-hermes] error: {err}")
+    except Exception as e:  # noqa: BLE001 · 启动钩子不能 crash
+        print(f"[meta-hermes] FATAL: {type(e).__name__}: {e}")
+
+    # 2. demo-agents · 可选
+    if INSTALL_DEMO:
         try:
-            result = sync_all_builtin(settings.api_base_url, BUILTIN_DIR, consumer=CONSUMER)
+            from demo_agents import sync_demo_agents
+
+            demo_result = sync_demo_agents(settings.api_base_url)
             print(
-                f"[builtin-sync] dir={BUILTIN_DIR} consumer={CONSUMER} "
-                f"synced={len(result['synced'])} skipped={len(result['skipped'])} "
-                f"filtered={len(result.get('filtered', []))} errors={len(result['errors'])}"
+                f"[demo-agents] synced={len(demo_result['synced'])} "
+                f"skipped={len(demo_result['skipped'])} errors={len(demo_result['errors'])}"
             )
-            if result["errors"]:
-                for slug, err in result["errors"]:
-                    print(f"[builtin-sync] error {slug}: {err}")
+            if demo_result["errors"]:
+                for slug, err in demo_result["errors"]:
+                    print(f"[demo-agents] error {slug}: {err}")
+        except ImportError:
+            print("[demo-agents] CAST_INSTALL_DEMO_AGENTS=1 但包未装 · 装 demo extra: uv sync --extra demo")
         except Exception as e:  # noqa: BLE001
-            print(f"[builtin-sync] FATAL: {type(e).__name__}: {e}")
+            print(f"[demo-agents] FATAL: {type(e).__name__}: {e}")
     else:
-        print(f"[builtin-sync] skip · dir not found: {BUILTIN_DIR}")
+        print("[demo-agents] skip · CAST_INSTALL_DEMO_AGENTS != '1'")
+
     yield
 
 
-app = FastAPI(title="cast-agents", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="cast-agents", version="0.3.0", lifespan=lifespan)
 
 # CORS · cast-app 浏览器跨域 (FC trigger 也自动加 · 但 FastAPI 自带更稳)
 app.add_middleware(
@@ -106,7 +122,7 @@ class TickBody(BaseModel):
 def root() -> dict:
     return {
         "name": "cast-agents",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "env": settings.env,
         "description": "Cast 平台 agent 后端装配商 · 通用 agent harness 跑 cast 平台 tools",
     }

@@ -37,10 +37,9 @@ jobs:
           git clone --depth 1 https://github.com/yarnovo/cast-skills.git cast-skills
           ls cast-skills/skills
 
-      - name: Clone cast-builtin-agents (build context · 跨平台 agent 真源)
-        run: |
-          git clone --depth 1 https://github.com/yarnovo/cast-builtin-agents.git cast-builtin-agents
-          ls cast-builtin-agents
+      # 老板 5-9 拍拆仓: cast-builtin-agents 已 archive
+      # · meta agent yaml 由 meta-hermes wheel 自带 · 不需 clone
+      # · demo agent yaml 由 demo-agents wheel 自带 (staging 装 · INSTALL_DEMO=1)
 
       - uses: docker/setup-buildx-action@v3
 
@@ -54,6 +53,8 @@ jobs:
         with:
           context: .
           push: true
+          build-args: |
+            INSTALL_DEMO=1
           tags: |
             ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:staging-${{ github.sha }}
             ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:staging-latest
@@ -94,7 +95,8 @@ jobs:
               "AKONG_LLM_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
               "AKONG_LLM_MODEL": "deepseek-v3.1",
               "ENV": "staging",
-              "API_BASE_URL": "https://api.staging.cast.agentaily.com"
+              "API_BASE_URL": "https://api.staging.cast.agentaily.com",
+              "CAST_INSTALL_DEMO_AGENTS": "1"
             }
           }
           JSON
