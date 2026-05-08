@@ -328,7 +328,7 @@ AKONG_MEMORY_BACKEND=sqlite
 
 > 5 个核心决策点 · 每条带"我的推荐 + 理由 + 反方"。老板拍后落 ADR。
 
-### D-1 · agent harness 寄宿哪
+### D-1 · agent harness 寄宿哪 ✅ 已拍 (走 C · 留本仓)
 
 **选项**:
 
@@ -345,7 +345,7 @@ AKONG_MEMORY_BACKEND=sqlite
 
 走"虚拟层 SDK + adapter pattern" (见 §3)。agent 调 `Workspace / Memory / Tools` 接口 · SDK 内部按数据形态 + 大小路由到 NAS / OSS / RDS / LocalFs。MVP 优先实现 LocalFs + NAS + RDS + 同进程 Tools。后续按需加 Vector / KV / AioSandbox adapter。
 
-### D-3 · tools 注册 + 调用协议
+### D-3 · tools 注册 + 调用协议 ✅ 已拍 (走 B + C 混合)
 
 **选项**:
 
@@ -359,7 +359,7 @@ AKONG_MEMORY_BACKEND=sqlite
 - "可热插的 tool" (例: 真人手动加自定义 webhook) 用 C
 - MCP (A) 待业界 wider 支持后再接
 
-### D-4 · meta agent 怎么 seed
+### D-4 · meta agent 怎么 seed ✅ 已拍 (走 B + C 组合 · 平台 yaml template + 真人首登 spawn)
 
 **选项**:
 
@@ -373,7 +373,7 @@ AKONG_MEMORY_BACKEND=sqlite
 - 真人注册时 spawn 实例 (用 template 渲染 · 真人首登触发)
 - meta agent 是 per-real-user-per-platform · 不是 per-platform 单例
 
-### D-5 · agent 自演化落地
+### D-5 · agent 自演化落地 ✅ 已拍 (走 C · append-only log + 时点视图)
 
 agent 调 `update_self(field, value)` 改自己 soul / playbook / memory · 怎么持久化?
 
