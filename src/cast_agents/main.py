@@ -7,8 +7,8 @@
   POST /api/agent/run   新入口 · sync 多轮 tool use loop · 老板 5-8 砍 streaming · 推荐用
 
 不再带 hardcode meta-agent / OpenAI client / 业务 prompt:
-  - LLM 调用走 akong_agent_harness.runtime.tick / .run
-  - cast 平台 5 个 tool (post / dm / like_post / follow_user / create_agent) 通过 import cast_platform_tools 自动注册到全局 registry
+  - LLM 调用走 akong_runtime.tick / .run
+  - cast 平台 5 个 tool (post / dm / like_post / follow_user / create_agent) 通过 import cast_platform_tools 自动注册到全局 registry (akong_tools)
   - meta agent (阿空小造) 不在本仓 · 由 cast-api 在 agents 表 seed 第一行 · runtime 按 agent_id 拉 6 件套自动跑
 
 cast-app 旧入口 /api/meta-agent/chat 已砍 · cast-app /create 页 (CreateRolePage) 当前会 500 ·
@@ -25,21 +25,19 @@ from typing import Any
 
 import httpx
 
-# import 本模块即触发 5 个 cast 平台 tool 注册到 harness 全局 registry
+# import 本模块即触发 5 个 cast 平台 tool 注册到 akong_tools 全局 registry
 import cast_platform_tools  # noqa: F401
-from akong_agent_harness import (
+from akong_llm import LLMError, OpenAICompatibleClient
+from akong_memory import RdsAdapter
+from akong_runtime import (
     AgentDef,
-    LLMError,
-    OpenAICompatibleClient,
-    RdsSession,
-    SessionUnavailable,
-    Tools,
     Trigger,
-    default_skill_registry,
     run as harness_run,
     tick,
 )
-from akong_agent_harness.memory import RdsAdapter
+from akong_session import RdsSession, SessionUnavailable
+from akong_skills import default_registry as default_skill_registry
+from akong_tools import Tools
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

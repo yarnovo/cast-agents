@@ -1,12 +1,17 @@
 [project]
 name = "cast-agents"
-version = "0.1.0"
-description = "Cast 平台 agent 后端装配商 · 装 akong-agent-harness + cast-platform-tools · FC v3 部署"
+version = "0.2.0"
+description = "Cast 平台 agent 后端装配商 · 直装 akong-runtime + 5 utility + cast-platform-tools · FC v3 部署 (老板 5-9 拍 砍 meta-package)"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "akong-agent-harness @ git+https://github.com/yarnovo/akong-agent-harness.git@req-meta-package-8repo-split",
-    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@req-bump-akong-meta-8repo-split",
+    "akong-runtime @ git+https://github.com/yarnovo/akong-runtime.git@main",
+    "akong-llm @ git+https://github.com/yarnovo/akong-llm.git@main",
+    "akong-session @ git+https://github.com/yarnovo/akong-session.git@main",
+    "akong-memory @ git+https://github.com/yarnovo/akong-memory.git@main",
+    "akong-tools @ git+https://github.com/yarnovo/akong-tools.git@main",
+    "akong-skills @ git+https://github.com/yarnovo/akong-skills.git@main",
+    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@feat/direct-import-tools",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.46.0",
     "pydantic==2.13.4",
