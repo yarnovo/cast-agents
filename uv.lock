@@ -443,8 +443,9 @@ wheels = [
 [[package]]
 name = "meta-hermes"
 version = "0.1.0"
-source = { git = "https://github.com/yarnovo/meta-hermes.git?rev=main#2219b733c1250ece6bd05a0e265f7d3f2670c52c" }
+source = { git = "https://github.com/yarnovo/meta-hermes.git?rev=main#15a00e1fd9f368c0ca5c43d88336167cbc7c334d" }
 dependencies = [
+    { name = "akong-hermes" },
     { name = "akong-tools" },
     { name = "httpx" },
     { name = "pyyaml" },
