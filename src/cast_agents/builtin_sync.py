@@ -46,15 +46,21 @@ def _resolve_owner_id(yaml_data: dict[str, Any]) -> str:
 
 def _agent_body(yaml_data: dict[str, Any]) -> dict[str, Any]:
     """yaml → AgentCreate body"""
+    import json as _json
+
     metadata = yaml_data.get("metadata") or {}
+    rules = yaml_data.get("rules")
     return {
         "name": yaml_data["name"],
         "tagline": metadata.get("tagline", ""),
         "soul": yaml_data.get("soul", ""),
         "playbook": yaml_data.get("playbook", ""),
         "style": yaml_data.get("style", ""),
-        "expertise": metadata.get("tagline", ""),  # MVP 用 tagline 兜底 · 后续 yaml 加 expertise 字段
+        "expertise": metadata.get("tagline", ""),  # MVP 用 tagline 兜底
         "avatar": metadata.get("avatar", ""),
+        "role": yaml_data.get("role", "normal"),
+        "rules_json": _json.dumps(rules, ensure_ascii=False) if rules else None,
+        "metadata_json": _json.dumps(metadata, ensure_ascii=False) if metadata else None,
     }
 
 
