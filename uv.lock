@@ -5,7 +5,7 @@ requires-python = ">=3.13"
 [[package]]
 name = "akong-agent-harness"
 version = "0.0.1"
-source = { git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main#d867044c57e6af2d92914cca3084f4d91e98cf97" }
+source = { git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main#b0201b0775f57c52b628ddca52b852eb53467eb0" }
 dependencies = [
     { name = "httpx" },
     { name = "openai" },
