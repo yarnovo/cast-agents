@@ -32,6 +32,16 @@ jobs:
         run: |
           git clone --depth 1 --branch v0.2.0 https://github.com/yarnovo/akong-agent-base.git akong-agent-base
 
+      - name: Clone cast-skills (build context · 容器内 SKILL.md 真源)
+        run: |
+          git clone --depth 1 https://github.com/yarnovo/cast-skills.git cast-skills
+          ls cast-skills/skills
+
+      - name: Clone akong-builtin-agents (build context · 跨平台 agent 真源)
+        run: |
+          git clone --depth 1 https://github.com/yarnovo/akong-builtin-agents.git akong-builtin-agents
+          ls akong-builtin-agents
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -80,6 +90,9 @@ jobs:
             "environmentVariables": {
               "DASHSCOPE_API_KEY": "$DASHSCOPE_API_KEY",
               "LLM_API_KEY": "$DASHSCOPE_API_KEY",
+              "AKONG_LLM_API_KEY": "$DASHSCOPE_API_KEY",
+              "AKONG_LLM_BASE_URL": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+              "AKONG_LLM_MODEL": "deepseek-v3.1",
               "ENV": "staging",
               "API_BASE_URL": "https://api.staging.cast.agentaily.com"
             }

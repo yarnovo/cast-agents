@@ -32,7 +32,9 @@ POST /api/agent/tick    agent runtime 入口
 ## 跑
 
 ```bash
-# 1. 装依赖 (需要 sibling 仓: ~/.claude/repos/agent/{akong-agent-harness, cast-platform-tools})
+# 1. 装依赖 (默认 git source · 拉 GitHub main)
+#    本地 dev 想 editable: 改 pyproject.toml 指向 sibling
+#    sibling 真路径: ~/.claude/repos/akong/agent-harness · ~/.claude/repos/cast/tools
 uv sync
 
 # 2. 配 env (harness 自己读)
@@ -78,26 +80,34 @@ src/cast_agents/
 - prod: `agents.api.cast.agentaily.com`
 - staging: `staging.agents.api.cast.agentaily.com`
 
-### 依赖装载 (path vs git source)
+### 依赖装载 (git source 默认 · path source 仅 dev)
 
-`pyproject.toml` 默认用 **path source** (sibling 布局: `~/.claude/repos/agent/{akong-agent-harness, cast-platform-tools}`):
+`pyproject.toml` 当前默认用 **git source** (CI / Docker / 任何 build 环境都可拉):
+
+```toml
+[project.dependencies]
+akong-agent-harness = "git+https://github.com/yarnovo/akong-agent-harness.git@main"
+cast-platform-tools = "git+https://github.com/yarnovo/cast-platform-tools.git@main"
+```
+
+本地 dev 想 editable: 改 `pyproject.toml` 加 `[tool.uv.sources]` 指向 sibling:
 
 ```toml
 [tool.uv.sources]
-akong-agent-harness = { path = "../../agent/akong-agent-harness", editable = true }
-cast-platform-tools = { path = "../../agent/cast-platform-tools", editable = true }
+akong-agent-harness = { path = "../../akong/agent-harness", editable = true }
+cast-platform-tools = { path = "../tools", editable = true }
 ```
 
-CI / Docker build 看不到 sibling 目录 · 需切换成 git source:
+> 注: `cast/tools` 仓自己的 `pyproject.toml` 也引 `akong-agent-harness` ·
+> 改源时两仓要同步切 · 否则消费方 (本仓) 拉它会撞反向解析错误。
 
-```toml
-[tool.uv.sources]
-akong-agent-harness = { git = "https://github.com/yarnovo/akong-agent-harness.git", branch = "main" }
-cast-platform-tools = { git = "https://github.com/yarnovo/cast-platform-tools.git", branch = "main" }
-```
+### akong/builtin-agents 跨平台 yaml
 
-> 注: `cast-platform-tools` 仓自己的 `pyproject.toml` 也用 path source 引 `akong-agent-harness` ·
-> 切 git source 时 `cast-platform-tools` 仓的 `pyproject.toml` 也要同步切 git source 并推 main · 否则消费方 (本仓) 拉它会撞反向 path 解析错误。
+builtin-agents 真源 = `~/.claude/repos/akong/builtin-agents/` (跨平台 · 本仓不持有)。
+
+容器内由 Dockerfile COPY 进 `/app/akong-builtin-agents` · 通过 env `AKONG_BUILTIN_AGENTS_DIR` 找到。dev 本地走 `~/.claude/repos/akong/builtin-agents/` fallback。
+
+CI build 时需 GHA workflow 单独 clone akong-builtin-agents 仓进 build context (lead 后续起独立 GitHub 仓 + 配 GH_TOKEN)。
 
 env (FC 函数 env 配):
 
