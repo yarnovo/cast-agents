@@ -1,0 +1,105 @@
+name: deploy
+# cast-agents · prod FC v3 Custom Container · ACR 部署 (老板 5-7 切回容器镜像 · 替 ZIP)
+#
+# 流程: clone akong-agent-base → docker build → push ACR → fc PUT custom-container
+# 凭证: ACR_USERNAME / ACR_PASSWORD / ALIYUN_AK / ALIYUN_SK / DASHSCOPE_API_KEY (+ agent specific)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "skills/**"
+      - "workspace/**"
+      - "Dockerfile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+env:
+  REGION: cn-hangzhou
+  REGISTRY: registry.cn-hangzhou.aliyuncs.com
+  REGISTRY_VPC: registry-vpc.cn-hangzhou.aliyuncs.com
+  NAMESPACE: agentaily
+  IMAGE_NAME: cast-agents
+  FC_FUNCTION: cast-agents
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone akong-agent-base v0.2 (build context sibling)
+        run: |
+          git clone --depth 1 --branch v0.2.0 https://github.com/yarnovo/akong-agent-base.git akong-agent-base
+          ls akong-agent-base
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Build + Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Setup aliyun CLI
+        run: |
+          curl -sLo /tmp/aliyun.tgz https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+          tar -xzf /tmp/aliyun.tgz -C /tmp && sudo mv /tmp/aliyun /usr/local/bin/
+          aliyun configure set --profile gha --mode AK \
+            --region $REGION \
+            --access-key-id "${{ secrets.ALIYUN_AK }}" \
+            --access-key-secret "${{ secrets.ALIYUN_SK }}"
+
+      - name: Update FC v3 function (custom-container · ACR image)
+        env:
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+        run: |
+          IMAGE_VPC="${{ env.REGISTRY_VPC }}/${{ env.NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
+          BODY=$(cat <<JSON
+          {
+            "functionName": "${FC_FUNCTION}",
+            "description": "${FC_FUNCTION} · ACR (来源 fc-agent-deploy skill)",
+            "runtime": "custom-container",
+            "handler": "not-used",
+            "timeout": 600,
+            "memorySize": 512,
+            "instanceConcurrency": 5,
+            "customContainerConfig": {
+              "image": "$IMAGE_VPC",
+              "port": 8000,
+              "healthCheckConfig": {"httpGetUrl": "/health", "initialDelaySeconds": 5}
+            },
+            "environmentVariables": {
+              "DASHSCOPE_API_KEY": "$DASHSCOPE_API_KEY",
+              "LLM_API_KEY": "$DASHSCOPE_API_KEY",
+              "ENV": "prod",
+              "API_BASE_URL": "https://api.cast.agentaily.com"
+            }
+          }
+          JSON
+          )
+          if ! aliyun --profile gha fc PUT "/2023-03-30/functions/${FC_FUNCTION}" \
+              --header "Content-Type=application/json;" --body "$BODY" 2>&1 | tee /tmp/fc.log | tail -5; then true; fi
+          if grep -q "FunctionNotFound\|can not find" /tmp/fc.log 2>/dev/null; then
+            aliyun --profile gha fc POST /2023-03-30/functions \
+              --header "Content-Type=application/json;" --body "$BODY" 2>&1 | tail -10
+          fi
+
+      - name: Smoke
+        run: |
+          sleep 10
+          curl -fsSL "https://api.cast-agents.agentaily.com/health?cb=$RANDOM" -w "\nHTTP %{http_code}\n" || true
