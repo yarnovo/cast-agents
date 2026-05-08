@@ -45,11 +45,18 @@ def _resolve_owner_id(yaml_data: dict[str, Any]) -> str:
 
 
 def _agent_body(yaml_data: dict[str, Any]) -> dict[str, Any]:
-    """yaml → AgentCreate body"""
+    """yaml → AgentCreate body
+
+    skills 字段走 metadata_json 携带 (cast-api schema 不动 · MVP 简化)
+    runtime 端 _resolve_agent_skill_slugs 会从 metadata_json.skills 读出来。
+    """
     import json as _json
 
-    metadata = yaml_data.get("metadata") or {}
+    metadata = dict(yaml_data.get("metadata") or {})
     rules = yaml_data.get("rules")
+    # skills 数组并入 metadata_json (cast-api 没原生 skills 字段 · 走 metadata 携带)
+    if "skills" in yaml_data:
+        metadata["skills"] = list(yaml_data.get("skills") or [])
     return {
         "name": yaml_data["name"],
         "tagline": metadata.get("tagline", ""),
