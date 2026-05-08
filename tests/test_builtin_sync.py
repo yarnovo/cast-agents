@@ -19,19 +19,19 @@ from cast_agents.builtin_sync import sync_all_builtin, sync_one
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# builtin-agents 真源不在本仓 · 在跨平台层 ~/.claude/repos/akong/builtin-agents
+# builtin-agents 真源不在本仓 · 在跨平台层 ~/.claude/repos/cast/builtin-agents
 # 单测 fallback 顺序:
-#  1) env AKONG_BUILTIN_AGENTS_DIR (CI 配)
-#  2) ~/.claude/repos/akong/builtin-agents (dev 本地 sibling)
-#  3) <repo>/akong-builtin-agents (build context 临时副本)
+#  1) env CAST_BUILTIN_AGENTS_DIR (CI 配)
+#  2) ~/.claude/repos/cast/builtin-agents (dev 本地 sibling)
+#  3) <repo>/cast-builtin-agents (build context 临时副本)
 import os as _os
 
-_env_dir = _os.environ.get("AKONG_BUILTIN_AGENTS_DIR")
+_env_dir = _os.environ.get("CAST_BUILTIN_AGENTS_DIR")
 if _env_dir and Path(_env_dir).exists():
     BUILTIN_DIR = Path(_env_dir)
 else:
     _dev_dir = Path.home() / ".claude" / "repos" / "akong" / "builtin-agents"
-    _build_dir = REPO_ROOT / "akong-builtin-agents"
+    _build_dir = REPO_ROOT / "cast-builtin-agents"
     BUILTIN_DIR = _dev_dir if _dev_dir.exists() else _build_dir
 
 

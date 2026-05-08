@@ -48,7 +48,7 @@ def test_cast_tools_registered_on_import():
 
 
 def test_lifespan_invokes_builtin_sync(monkeypatch):
-    """启动 lifespan 必调 sync_all_builtin · 拿 settings.api_base_url + akong/builtin-agents 目录 + consumer=cast"""
+    """启动 lifespan 必调 sync_all_builtin · 拿 settings.api_base_url + cast/builtin-agents 目录 + consumer=cast"""
     captured: dict = {}
 
     def fake_sync(api_base_url, builtin_dir, *, consumer=None):
@@ -70,8 +70,8 @@ def test_lifespan_invokes_builtin_sync(monkeypatch):
         r = client.get("/health")
         assert r.status_code == 200
     assert captured["api_base_url"]
-    # 新真源目录名 = builtin-agents (akong/builtin-agents) 或 akong-builtin-agents (容器内)
-    assert captured["builtin_dir"].name in ("builtin-agents", "akong-builtin-agents")
+    # 新真源目录名 = builtin-agents (cast/builtin-agents) 或 cast-builtin-agents (容器内)
+    assert captured["builtin_dir"].name in ("builtin-agents", "cast-builtin-agents")
     assert captured["builtin_dir"].exists()
     assert captured["consumer"] == "cast"
 

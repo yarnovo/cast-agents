@@ -1,7 +1,7 @@
-"""启动时扫 akong/builtin-agents/*.yaml · upsert 到 cast-api agents 表
+"""启动时扫 cast/builtin-agents/*.yaml · upsert 到 cast-api agents 表
 
-builtin-agents 真源 = ~/.claude/repos/akong/builtin-agents/ (跨平台共享)
-本仓 (cast/agents) 是消费方 · 通过 env AKONG_BUILTIN_AGENTS_DIR 拿到目录路径。
+builtin-agents 真源 = ~/.claude/repos/cast/builtin-agents/ (跨平台共享)
+本仓 (cast/agents) 是消费方 · 通过 env CAST_BUILTIN_AGENTS_DIR 拿到目录路径。
 
 MVP 简化:
   - meta 跟普通 builtin 都同步 · meta 用 owner_id=u01 单例 (不 per-user · 等真人多用户后再切)
@@ -165,7 +165,7 @@ def sync_all_builtin(
 
     Args:
       api_base_url  cast-api endpoint
-      builtin_dir   ~/.claude/repos/akong/builtin-agents/ (或容器内 mount 路径)
+      builtin_dir   ~/.claude/repos/cast/builtin-agents/ (或容器内 mount 路径)
       consumer      平台标识 (例 "cast" / "bilibili") · 过滤 yaml `consumers:` 字段
                     None = 不过滤 (sync 全部 · 用于 dev / 测试)
 
