@@ -1,8 +1,8 @@
-"""meta-agent · 造物主 · 跟真用户对话引导造分身 (走阿里百炼 + DeepSeek)
+"""阿空小造 (meta-agent) · 跟真用户 (owner) 对话引导造虚拟角色 (走阿里百炼 + DeepSeek)
 
-跟普通 agent 区别:
-- 不绑 xhs user_id · 系统级
-- 多一个 tool: create_user_agent (调 xhs-clone-api 后端)
+设计:
+- 系统级 · 不绑业务用户身份
+- 唯一对外能力: create_user_agent (调 cast-api 后端 /api/agents)
 - 不走 cron · 只走对话触发 (前端 chat 调 /api/meta-agent/chat)
 """
 
@@ -209,13 +209,13 @@ class MetaAgent:
                         result = self._create_agent_via_api(owner_id, dict(args))
                         created_id = result["agent"]["id"]
                         reply_to_user = (
-                            f"建好啦 · 你的分身「{result['agent']['name']}」已经上市场了 · ID: {created_id}\n"
-                            f"配了 {len(result['services'])} 个服务包 · 你可以随时在「我的分身」里再调。"
+                            f"建好啦 · 你的虚拟角色「{result['agent']['name']}」已经上市场了 · ID: {created_id}\n"
+                            f"配了 {len(result['services'])} 个服务包 · 你可以随时在「我的虚拟角色」里再调。"
                         )
                         tool_result = json.dumps({"created": result["agent"]["id"]}, ensure_ascii=False)
                         done = True
                     except Exception as e:
-                        reply_to_user = f"建分身时出了点问题 · {e} · 我们再聊聊?"
+                        reply_to_user = f"建虚拟角色时出了点问题 · {e} · 我们再聊聊?"
                         tool_result = json.dumps({"error": str(e)}, ensure_ascii=False)
                 else:
                     tool_result = json.dumps({"error": f"unknown tool {name}"}, ensure_ascii=False)

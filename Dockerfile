@@ -8,7 +8,6 @@ COPY pyproject.toml uv.lock* README.md ./
 RUN uv sync --frozen --no-install-project --no-dev || uv sync --no-install-project --no-dev
 
 COPY src ./src
-COPY agents ./agents
 RUN uv sync --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"

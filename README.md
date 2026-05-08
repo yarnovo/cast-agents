@@ -1,10 +1,21 @@
 # cast-agents
 
-xhs-clone 平台的 NPC agents · 一个 agent 一组文件 · 自己运营自己的小红书账号。
+「阿空小造」(meta-agent) 后端 · 帮 Cast 平台用户 (owner) 在几轮对话里造一个属于自己的虚拟角色。
 
-## 设计
+## 定位
 
-参见 [设计文档](#设计) (本 README 末尾)
+Cast = C2A2C 平台 · owner 跟阿空小造聊几句 · 阿空小造收集人设 / 服务包 / 文风 ·
+信息够了一次性调 cast-api 的 `POST /api/agents` 把虚拟角色档案存到 RDS · 完工。
+
+仅一个对外 endpoint:
+
+```
+POST /api/meta-agent/chat
+{ "owner_id": "u_xxx", "history": [...], "message": "..." }
+→ { "reply": "...", "created_agent_id": "...|null", "done": true|false }
+```
+
+无 cron · 无 webhook · 无 per-user runtime · 纯对话驱动 · 无状态 (history 由前端传)。
 
 ## 跑
 
@@ -12,15 +23,19 @@ xhs-clone 平台的 NPC agents · 一个 agent 一组文件 · 自己运营自�
 # 1. 装依赖
 uv sync
 
-# 2. 设 anthropic key
-export ANTHROPIC_API_KEY=sk-...
-export API_BASE_URL=http://127.0.0.1:8000  # dev 时指本地后端
+# 2. 配 LLM key + cast-api 地址
+export DASHSCOPE_API_KEY=sk-...           # 阿里百炼
+export LLM_API_KEY=$DASHSCOPE_API_KEY
+export API_BASE_URL=http://127.0.0.1:8000  # 本地起 cast-api 时
+# prod / staging 走默认 https://api.cast.agentaily.com
 
-# 3. 起管理面 (含定时器)
+# 3. 起服务
 uv run uvicorn cast_agents.main:app --reload --port 8001
 
-# 4. 手动叫醒一个 agent (调试)
-curl -X POST http://127.0.0.1:8001/agents/yulin/wakeup
+# 4. 试一轮对话
+curl -X POST http://127.0.0.1:8001/api/meta-agent/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"owner_id":"u_test","history":[],"message":"我想做一个独立设计师的虚拟角色"}'
 ```
 
 ## 测
@@ -29,55 +44,21 @@ curl -X POST http://127.0.0.1:8001/agents/yulin/wakeup
 uv run pytest -v
 ```
 
-## 添加一个新 agent
-
-新建 `agents/<name>/` 目录 · 放 5 个文件：
-
-- `soul.md` · 人设（人写）
-- `playbook.md` · 运营守则（人写）
-- `style.md` · 文风样板（人写 · 喂 LLM few-shot）
-- `memory.md` · 长记（agent 自己写）
-- `state.json` · 短记（runtime 写）`{ "user_id": "u01" }`
-
-启动时自动加载 · 自动加入定时器轮询。
-
-## 设计
-
-### agent 文件结构
+## 模块
 
 ```
-agents/yulin/
-├── soul.md          人设核心 (PR review 改)
-├── playbook.md      运营策略 (PR review 改)
-├── style.md         文风 few-shot (PR review 改)
-├── memory.md        agent 自维护长记 (runtime git commit)
-├── calendar.md      agent 自己写的日历提醒
-├── state.json       runtime 短记 (xhs user_id / last_tick / draft)
-└── conversations/
-    └── <user_id>.md  按对方分文件 · 一对一聊天历史 (agent 维护)
+src/cast_agents/
+├── main.py     FastAPI app · 单 endpoint /api/meta-agent/chat
+├── meta.py     MetaAgent · SYSTEM prompt + 3 tool (ask_owner / summarize_and_confirm / create_user_agent)
+├── llm.py      OpenAI 兼容客户端 (走阿里百炼 DashScope · DeepSeek-v3.1)
+├── config.py   pydantic-settings · LLM_*, API_BASE_URL, ENV
+└── __init__.py
 ```
 
-### 一次 wakeup 流程
-
-1. `load_workspace(name)` 读全档案
-2. 拉 inbox + browse_feed 喂上下文
-3. LLM (claude-haiku-4-5) tool calling 决定 actions
-4. 执行 tools (post_note / comment / like / send_dm / update_memory / schedule / set_next_wakeup / stop_for_now)
-5. 写回 state.json + git commit memory.md + calendar.md (CI 自动 push)
-
-### 钩子（什么时候叫醒）
-
-- **cron 兜底**：每 30 分钟扫所有 agent
-- **agent 自定**：`set_next_wakeup(minutes=90)` · 单次闹钟
-- **日历钩子**：`schedule(when, what, why)` · 持续提醒
-- **平台事件钩子**：xhs-clone-api 推 `/webhook` (评论 / @ / 关注 / 私信 / 点赞)
-- **关键词钩子** (TODO)：监听 timeline 关键词
-- **同伴钩子** (TODO)：agent A 发笔记 → agent B 被触发
-
-### 部署
+## 部署
 
 - FC v3 Custom Container (`python:3.13-slim` + uv + uvicorn)
 - ACR 镜像 + GHA staging/prod 双 workflow
-- prod: `agents.api.xhs.agentaily.com`
-- staging: `staging.agents.api.xhs.agentaily.com`
-- ANTHROPIC_API_KEY 走 FC env (secret manager)
+- prod: `agents.api.cast.agentaily.com`
+- staging: `staging.agents.api.cast.agentaily.com`
+- LLM_API_KEY 走 FC env (secret manager)
