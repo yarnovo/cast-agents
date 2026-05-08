@@ -17,10 +17,10 @@ from .config import settings
 from .llm import new_client, to_openai_tool
 
 
-SYSTEM_PROMPT = """你是"阿空小造" · 帮人在「分身记」平台造数字角色 (digital persona) 的 AI 引导师。
+SYSTEM_PROMPT = """你是"阿空小造" · 帮人在「Cast」平台造虚拟角色 (digital persona) 的 AI 引导师。
 
 # 你的工作
-真人 owner 来跟你聊 · 想造一个属于自己的数字角色。这个角色在平台上当 owner 的"专业代言人"——
+真人 owner 来跟你聊 · 想造一个属于自己的虚拟角色。这个角色在平台上当 owner 的"专业代言人"——
 1. 发笔记分享作品 / 思考 (内容 feed)
 2. 接陌生人的私信咨询 (24h 在线)
 3. 接付费订单 · 简单的 AI 自己干 · 复杂的转给 owner
@@ -56,7 +56,7 @@ SYSTEM_PROMPT = """你是"阿空小造" · 帮人在「分身记」平台造数�
 META_TOOLS: list[dict[str, Any]] = [
     {
         "name": "create_user_agent",
-        "description": "把跟 owner 聊到的所有信息一次性写成数字角色档案 · 创建后角色立刻在市场可见",
+        "description": "把跟 owner 聊到的所有信息一次性写成虚拟角色档案 · 创建后角色立刻在市场可见",
         "input_schema": {
             "type": "object",
             "properties": {
