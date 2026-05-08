@@ -12,6 +12,8 @@ dependencies = [
     "akong-tools @ git+https://github.com/yarnovo/akong-tools.git@main",
     "akong-skills @ git+https://github.com/yarnovo/akong-skills.git@main",
     "akong-hermes @ git+https://github.com/yarnovo/akong-hermes.git@main",
+    # akong-sandbox 装上后 lifespan 自动起 backend (lazy import) · 暂走 main · 等下游 PR 合并后切
+    # "akong-sandbox @ git+https://github.com/yarnovo/akong-sandbox.git@main",
     "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@main",
     "meta-hermes @ git+https://github.com/yarnovo/meta-hermes.git@main",
     "fastapi==0.136.1",

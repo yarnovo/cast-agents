@@ -35,6 +35,13 @@ from akong_hermes import (
     SkillResolver,
     ToolResolver,
 )
+
+# SandboxClient Protocol · akong-hermes feat/sandbox-client-injection 引入 (老板 5-9)
+# 通过 try import 兼容 main 分支 · 等 hermes PR merge 后转硬 import.
+try:
+    from akong_hermes import SandboxClient
+except ImportError:  # akong-hermes main 还没 merge 时
+    SandboxClient = None  # type: ignore[assignment,misc]
 from akong_llm import LLMError, OpenAICompatibleClient
 from akong_memory import RdsAdapter
 from akong_runtime import (
@@ -59,14 +66,64 @@ from .config import settings
 INSTALL_DEMO = os.environ.get("CAST_INSTALL_DEMO_AGENTS") == "1"
 
 
+def _build_sandbox_client():
+    # type: ignore[no-untyped-def]
+    # 返 SandboxClient | None · annotation 弱化避免 main 没 SandboxClient 时崩
+    """按 env 装 sandbox backend (老板 5-9 拍 · prod AgentRun · dev LocalDocker · 不配则 None).
+
+    Returns:
+      SandboxClient 实例 (AgentRunBackend / LocalDockerBackend) · 或 None 表示不启用
+      sandbox 真跑 (dynamic_python skill / tool 直接走 stub).
+
+    env:
+      AKONG_SANDBOX_BACKEND   'agentrun' (prod) / 'local-docker' (dev) / 不设 = 不启用
+      AKONG_AGENTRUN_ACCOUNT_ID  agentrun 必配
+      AKONG_AGENTRUN_API_KEY     agentrun 必配
+      AKONG_AGENTRUN_REGION      默认 cn-hangzhou
+    """
+    backend_name = os.environ.get("AKONG_SANDBOX_BACKEND", "").lower()
+    if not backend_name:
+        return None
+    if backend_name == "agentrun":
+        try:
+            from akong_sandbox import AgentRunBackend
+        except ImportError:
+            print("[sandbox] AKONG_SANDBOX_BACKEND=agentrun 但 akong-sandbox 未装 · 跳过")
+            return None
+        account_id = os.environ.get("AKONG_AGENTRUN_ACCOUNT_ID", "")
+        api_key = os.environ.get("AKONG_AGENTRUN_API_KEY", "")
+        if not account_id or not api_key:
+            print(
+                "[sandbox] AKONG_SANDBOX_BACKEND=agentrun 但缺 ACCOUNT_ID / API_KEY · 跳过"
+            )
+            return None
+        region = os.environ.get("AKONG_AGENTRUN_REGION", "cn-hangzhou")
+        print(f"[sandbox] AgentRunBackend ready · account={account_id} region={region}")
+        return AgentRunBackend(account_id=account_id, api_key=api_key, region=region)
+    if backend_name == "local-docker":
+        try:
+            from akong_sandbox import LocalDockerBackend
+        except ImportError:
+            print("[sandbox] AKONG_SANDBOX_BACKEND=local-docker 但 akong-sandbox 未装 · 跳过")
+            return None
+        print("[sandbox] LocalDockerBackend ready")
+        return LocalDockerBackend()
+    print(f"[sandbox] 不识别 AKONG_SANDBOX_BACKEND={backend_name} · 跳过")
+    return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动钩子: 灌 meta agent (必装) + 可选灌 demo agents (env opt-in)。
+    """启动钩子: 灌 meta agent (必装) + 可选灌 demo agents (env opt-in) + 装 sandbox backend (老板 5-9 拍).
 
     老板 5-9 拍拆仓:
       - 静态 hermes (meta-hermes) · 必装 · 平台核心入口
       - demo / 种子 agent (demo-agents) · 默认不装 · CAST_INSTALL_DEMO_AGENTS=1 才装
+      - sandbox client (akong-sandbox AgentRunBackend) · 装上后注入 SkillResolver / ToolResolver · 跑 dynamic_python
     """
+    # 0. sandbox backend (老板 5-9 拍 · 没配 env 则 None · 不阻塞启动)
+    sandbox_client = _build_sandbox_client()
+    app.state.sandbox_client = sandbox_client
     # 1. meta-hermes · 必装
     try:
         meta_result = sync_meta(settings.api_base_url)
@@ -113,7 +170,16 @@ async def lifespan(app: FastAPI):
     else:
         print("[demo-agents] skip · CAST_INSTALL_DEMO_AGENTS != '1'")
 
-    yield
+    try:
+        yield
+    finally:
+        # shutdown · 释放 sandbox 实例 (省费用)
+        if sandbox_client is not None:
+            try:
+                await sandbox_client.aclose()
+                print("[sandbox] aclose ok")
+            except Exception as e:  # noqa: BLE001
+                print(f"[sandbox] aclose failed: {type(e).__name__}: {e}")
 
 
 app = FastAPI(title="cast-agents", version="0.3.0", lifespan=lifespan)
