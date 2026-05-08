@@ -16,6 +16,8 @@ cast-app 旧入口 /api/meta-agent/chat 已砍 · cast-app /create 页 (CreateRo
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 # import 本模块即触发 5 个 cast 平台 tool 注册到 harness 全局 registry
@@ -24,10 +26,35 @@ from akong_agent_harness import Trigger, tick
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from .builtin_sync import sync_all_builtin
 from .config import settings
 
 
-app = FastAPI(title="cast-agents", version="0.2.0")
+# builtin-agents/*.yaml 目录 (仓 root 下 · src/cast_agents/main.py 往上 3 级)
+BUILTIN_DIR = Path(__file__).resolve().parent.parent.parent / "builtin-agents"
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """启动钩子: 扫 builtin-agents/*.yaml · sync 到 cast-api agents 表 (架构 §D-4)"""
+    if BUILTIN_DIR.exists():
+        try:
+            result = sync_all_builtin(settings.api_base_url, BUILTIN_DIR)
+            print(
+                f"[builtin-sync] synced={len(result['synced'])} "
+                f"skipped={len(result['skipped'])} errors={len(result['errors'])}"
+            )
+            if result["errors"]:
+                for slug, err in result["errors"]:
+                    print(f"[builtin-sync] error {slug}: {err}")
+        except Exception as e:  # noqa: BLE001
+            print(f"[builtin-sync] FATAL: {type(e).__name__}: {e}")
+    else:
+        print(f"[builtin-sync] skip · dir not found: {BUILTIN_DIR}")
+    yield
+
+
+app = FastAPI(title="cast-agents", version="0.2.0", lifespan=lifespan)
 
 
 class TickBody(BaseModel):

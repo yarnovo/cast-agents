@@ -1,0 +1,146 @@
+"""启动时扫 builtin-agents/*.yaml · upsert 到 cast-api agents 表
+
+MVP 简化:
+  - meta 跟普通 builtin 都同步 · meta 用 owner_id=u01 单例 (不 per-user · 等真人多用户后再切)
+  - 用 cast-api HTTP endpoint · 不直连 DB
+  - create-if-not-exists · 不做 diff update (减少复杂度)
+  - agent_id 确定: ag_builtin_<slug> (cast-api 支持 ?id_override=)
+
+跟 cast-api 端契约:
+  - POST /api/agents?owner_id=<oid>&id_override=ag_builtin_<slug>
+    body 含 name/tagline/soul/playbook/style/expertise
+    201 = 新建成功 · 409 = 已存在 (跳过)
+  - POST /api/agents/{id}/services?owner_id=<oid>  · 每个 yaml services 项一调
+  - POST /api/agents/{id}/tools/{tool_id}          · 每个 yaml tools 项一调
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import httpx
+import yaml
+
+# meta agent owner: MVP 单 owner · 真人多账号后切 per-user spawn
+DEFAULT_META_OWNER_ID = "u01"
+# 普通 builtin agent owner · yaml 里写啥用啥 · 缺省时 fallback u01
+FALLBACK_OWNER_ID = "u01"
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    with path.open(encoding="utf-8") as f:
+        return yaml.safe_load(f)
+
+
+def _resolve_owner_id(yaml_data: dict[str, Any]) -> str:
+    """从 yaml owner_id 字段拿 owner · meta 模板用 DEFAULT_META_OWNER_ID 单例"""
+    if yaml_data.get("role") == "meta":
+        return DEFAULT_META_OWNER_ID
+    raw = yaml_data.get("owner_id") or FALLBACK_OWNER_ID
+    # template 占位符 (例: $REAL_USER_ID) · MVP 用 fallback
+    if isinstance(raw, str) and raw.startswith("$"):
+        return FALLBACK_OWNER_ID
+    return raw
+
+
+def _agent_body(yaml_data: dict[str, Any]) -> dict[str, Any]:
+    """yaml → AgentCreate body"""
+    metadata = yaml_data.get("metadata") or {}
+    return {
+        "name": yaml_data["name"],
+        "tagline": metadata.get("tagline", ""),
+        "soul": yaml_data.get("soul", ""),
+        "playbook": yaml_data.get("playbook", ""),
+        "style": yaml_data.get("style", ""),
+        "expertise": metadata.get("tagline", ""),  # MVP 用 tagline 兜底 · 后续 yaml 加 expertise 字段
+        "avatar": metadata.get("avatar", ""),
+    }
+
+
+def sync_one(yaml_data: dict[str, Any], client: httpx.Client) -> tuple[str, str]:
+    """upsert 一个 builtin agent · 返 (agent_id, status)
+
+    status:
+      - "created" · 新建
+      - "exists"  · 已存在 (跳过)
+
+    步骤:
+      1. agent_id = ag_builtin_<slug>
+      2. POST /api/agents?owner_id=<oid>&id_override=<id> body=AgentCreate
+         201 → 创建成功 · 同步 services + tools
+         409 → 已存在 · 跳过 (MVP 不 diff update)
+      3. raise HTTPError 其它情况
+    """
+    slug = yaml_data["slug"]
+    agent_id = f"ag_builtin_{slug}"
+    owner_id = _resolve_owner_id(yaml_data)
+
+    body = _agent_body(yaml_data)
+    r = client.post(
+        f"/api/agents?owner_id={owner_id}&id_override={agent_id}",
+        json=body,
+    )
+    if r.status_code == 409:
+        return agent_id, "exists"
+    if r.status_code != 201:
+        r.raise_for_status()
+
+    # 同步 services
+    for svc in yaml_data.get("services") or []:
+        svc_body = {
+            "title": svc["title"],
+            "description": svc.get("description", ""),
+            "price_cents": svc["price_cents"],
+            "sla_hours": svc.get("sla_hours", 72),
+            "mode": svc.get("mode", "hybrid"),
+        }
+        sr = client.post(
+            f"/api/agents/{agent_id}/services?owner_id={owner_id}",
+            json=svc_body,
+        )
+        sr.raise_for_status()
+
+    # 同步 tools (grant agent_tools 关联)
+    for tool_id in yaml_data.get("tools") or []:
+        tr = client.post(f"/api/agents/{agent_id}/tools/{tool_id}")
+        # 工具 grant endpoint 可能尚未在 router 注册 · MVP 容忍 404 (架构 §2.4 基建后接)
+        if tr.status_code not in (201, 204, 404, 409):
+            tr.raise_for_status()
+
+    return agent_id, "created"
+
+
+def sync_all_builtin(api_base_url: str, builtin_dir: Path) -> dict[str, Any]:
+    """扫 builtin-agents/*.yaml · 调 cast-api upsert
+
+    返 {synced: list[str], skipped: list[str], errors: list[(slug, error)]}
+
+    synced  · 本次新建的 agent_id
+    skipped · 已存在的 agent_id
+    errors  · (slug, error message) tuple list · 不抛异常 (启动钩子不能阻止 lifespan)
+    """
+    result: dict[str, Any] = {"synced": [], "skipped": [], "errors": []}
+
+    yaml_files = sorted(builtin_dir.glob("*.yaml"))
+    if not yaml_files:
+        return result
+
+    # trust_env=False · 不沾系统代理 (FC 容器 / dev 机 SOCKS_PROXY 都不影响内网调 cast-api)
+    with httpx.Client(base_url=api_base_url, timeout=10.0, trust_env=False) as client:
+        for yaml_path in yaml_files:
+            slug = yaml_path.stem
+            try:
+                yaml_data = _load_yaml(yaml_path)
+                if not yaml_data or not yaml_data.get("slug"):
+                    result["errors"].append((slug, "missing slug field"))
+                    continue
+                agent_id, status = sync_one(yaml_data, client)
+                if status == "created":
+                    result["synced"].append(agent_id)
+                else:
+                    result["skipped"].append(agent_id)
+            except Exception as e:  # noqa: BLE001 · 启动钩子不能 crash
+                result["errors"].append((slug, f"{type(e).__name__}: {e}"))
+
+    return result
