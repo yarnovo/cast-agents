@@ -5,8 +5,8 @@ description = "Cast 平台 agent 后端装配商 · 装 akong-agent-harness + ca
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "akong-agent-harness @ git+https://github.com/yarnovo/akong-agent-harness.git@main",
-    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@main",
+    "akong-agent-harness @ git+https://github.com/yarnovo/akong-agent-harness.git@req-meta-package-8repo-split",
+    "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@req-bump-akong-meta-8repo-split",
     "fastapi==0.136.1",
     "uvicorn[standard]==0.46.0",
     "pydantic==2.13.4",

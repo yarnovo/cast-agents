@@ -4,15 +4,95 @@ requires-python = ">=3.13"
 
 [[package]]
 name = "akong-agent-harness"
+version = "0.2.0"
+source = { git = "https://github.com/yarnovo/akong-agent-harness.git?rev=req-meta-package-8repo-split#9a503e42f22da50366066a36a682307496eacdda" }
+dependencies = [
+    { name = "akong-llm" },
+    { name = "akong-memory" },
+    { name = "akong-pickup" },
+    { name = "akong-runtime" },
+    { name = "akong-session" },
+    { name = "akong-skills" },
+    { name = "akong-tools" },
+    { name = "akong-workspace" },
+]
+
+[[package]]
+name = "akong-llm"
 version = "0.1.0"
-source = { git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main#fc8c576675cc96a57b2fd6bb18c87339523bd43f" }
+source = { git = "https://github.com/yarnovo/akong-llm.git?rev=main#345467aca40f3d7e1ff26eae802b7dbaaf02363f" }
 dependencies = [
     { name = "anthropic" },
+    { name = "openai" },
+]
+
+[[package]]
+name = "akong-memory"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-memory.git?rev=main#efc5c6b5c710eab49728d675d4b84625b4b66f06" }
+dependencies = [
+    { name = "httpx" },
+    { name = "python-dateutil" },
+]
+
+[[package]]
+name = "akong-pickup"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-pickup.git?rev=main#dac1bf8c9f000f678cf6dc0581f8eccaf37f9909" }
+dependencies = [
+    { name = "akong-llm" },
+    { name = "akong-memory" },
+    { name = "akong-runtime" },
+    { name = "akong-session" },
+    { name = "akong-skills" },
+    { name = "akong-tools" },
+]
+
+[[package]]
+name = "akong-runtime"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-runtime.git?rev=main#a9c2796e08869bd60b9b37abfa9af752939ca753" }
+dependencies = [
+    { name = "akong-llm" },
+    { name = "akong-memory" },
+    { name = "akong-session" },
+    { name = "akong-skills" },
+    { name = "akong-tools" },
+    { name = "akong-workspace" },
     { name = "httpx" },
     { name = "openai" },
     { name = "python-dateutil" },
+]
+
+[[package]]
+name = "akong-session"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-session.git?rev=main#ee1f3ce3bcd2b2d4ada285a50dde3df203a12549" }
+dependencies = [
+    { name = "httpx" },
+]
+
+[[package]]
+name = "akong-skills"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-skills.git?rev=main#5cc083aee719a5a008a3f7436dc47a94b9791496" }
+dependencies = [
     { name = "pyyaml" },
 ]
+
+[[package]]
+name = "akong-tools"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-tools.git?rev=main#274f02a451459f3dcadf9d07a5f68c845fcfdfc4" }
+dependencies = [
+    { name = "httpx" },
+    { name = "python-dateutil" },
+]
+
+[[package]]
+name = "akong-workspace"
+version = "0.1.0"
+source = { git = "https://github.com/yarnovo/akong-workspace.git?rev=main#20c88f406e8f1cf586f2eb2bc00457ebb91d55cf" }
 
 [[package]]
 name = "annotated-doc"
@@ -87,8 +167,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "akong-agent-harness", git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main" },
-    { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main" },
+    { name = "akong-agent-harness", git = "https://github.com/yarnovo/akong-agent-harness.git?rev=req-meta-package-8repo-split" },
+    { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=req-bump-akong-meta-8repo-split" },
     { name = "fastapi", specifier = "==0.136.1" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = "==2.13.4" },
@@ -107,7 +187,7 @@ dev = [
 [[package]]
 name = "cast-platform-tools"
 version = "0.1.0"
-source = { git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main#1a17ec90823931de421f35cd7804ef6c150d9582" }
+source = { git = "https://github.com/yarnovo/cast-platform-tools.git?rev=req-bump-akong-meta-8repo-split#3f41ffb0d83fc1b223c94b1b82d763ce7f57e6fb" }
 dependencies = [
     { name = "akong-agent-harness" },
     { name = "httpx" },
