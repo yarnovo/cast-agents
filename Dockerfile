@@ -12,16 +12,16 @@ RUN uv sync --frozen --no-install-project --no-dev || uv sync --no-install-proje
 
 COPY src ./src
 
-# akong/builtin-agents 跨平台 yaml 真源 · build context 由 GHA workflow clone
-# (lead 后续起 akong-builtin-agents 独立 GitHub 仓 · workflow clone 进 build context)
-COPY akong-builtin-agents ./akong-builtin-agents
+# cast/builtin-agents 跨平台 yaml 真源 · build context 由 GHA workflow clone
+# (lead 后续起 cast-builtin-agents 独立 GitHub 仓 · workflow clone 进 build context)
+COPY cast-builtin-agents ./cast-builtin-agents
 
 RUN uv sync --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV AKONG_BUILTIN_AGENTS_DIR=/app/akong-builtin-agents
+ENV CAST_BUILTIN_AGENTS_DIR=/app/cast-builtin-agents
 
 EXPOSE 8000
 

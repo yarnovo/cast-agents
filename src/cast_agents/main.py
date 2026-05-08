@@ -48,13 +48,13 @@ from .builtin_sync import sync_all_builtin
 from .config import settings
 
 
-# akong/builtin-agents/*.yaml 目录 · 跨平台真源 (~/.claude/repos/akong/builtin-agents/)
-# 容器内由 Dockerfile COPY 进 /app/akong-builtin-agents · 通过 env override
-# dev 本地默认 fallback 到 ~/.claude/repos/akong/builtin-agents (sibling 布局)
+# cast/builtin-agents/*.yaml 目录 · 跨平台真源 (~/.claude/repos/cast/builtin-agents/)
+# 容器内由 Dockerfile COPY 进 /app/cast-builtin-agents · 通过 env override
+# dev 本地默认 fallback 到 ~/.claude/repos/cast/builtin-agents (sibling 布局)
 _DEV_FALLBACK = Path.home() / ".claude" / "repos" / "akong" / "builtin-agents"
-_CONTAINER_PATH = Path("/app/akong-builtin-agents")
+_CONTAINER_PATH = Path("/app/cast-builtin-agents")
 BUILTIN_DIR = Path(
-    os.environ.get("AKONG_BUILTIN_AGENTS_DIR")
+    os.environ.get("CAST_BUILTIN_AGENTS_DIR")
     or (str(_CONTAINER_PATH) if _CONTAINER_PATH.exists() else str(_DEV_FALLBACK))
 )
 
@@ -64,7 +64,7 @@ CONSUMER = "cast"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动钩子: 扫 akong/builtin-agents/*.yaml · sync 到 cast-api agents 表 (架构 §D-4)"""
+    """启动钩子: 扫 cast/builtin-agents/*.yaml · sync 到 cast-api agents 表 (架构 §D-4)"""
     if BUILTIN_DIR.exists():
         try:
             result = sync_all_builtin(settings.api_base_url, BUILTIN_DIR, consumer=CONSUMER)

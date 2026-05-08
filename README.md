@@ -77,7 +77,7 @@ uv run pytest -v
 ```
 src/cast_agents/
 ├── main.py        FastAPI app · 4 endpoint (/, /health, /api/agent/tick, /api/agent/run)
-├── builtin_sync.py akong/builtin-agents/*.yaml → cast-api agents 表 (lifespan 启动钩子)
+├── builtin_sync.py cast/builtin-agents/*.yaml → cast-api agents 表 (lifespan 启动钩子)
 ├── config.py      pydantic-settings · api_base_url + env (LLM env 由 harness 自己读)
 └── __init__.py
 ```
@@ -118,13 +118,13 @@ cast-platform-tools = { path = "../tools", editable = true }
 > 注: `cast/tools` 仓自己的 `pyproject.toml` 也引 `akong-agent-harness` ·
 > 改源时两仓要同步切 · 否则消费方 (本仓) 拉它会撞反向解析错误。
 
-### akong/builtin-agents 跨平台 yaml
+### cast/builtin-agents 跨平台 yaml
 
-builtin-agents 真源 = `~/.claude/repos/akong/builtin-agents/` (跨平台 · 本仓不持有)。
+builtin-agents 真源 = `~/.claude/repos/cast/builtin-agents/` (跨平台 · 本仓不持有)。
 
-容器内由 Dockerfile COPY 进 `/app/akong-builtin-agents` · 通过 env `AKONG_BUILTIN_AGENTS_DIR` 找到。dev 本地走 `~/.claude/repos/akong/builtin-agents/` fallback。
+容器内由 Dockerfile COPY 进 `/app/cast-builtin-agents` · 通过 env `CAST_BUILTIN_AGENTS_DIR` 找到。dev 本地走 `~/.claude/repos/cast/builtin-agents/` fallback。
 
-CI build 时需 GHA workflow 单独 clone akong-builtin-agents 仓进 build context (lead 后续起独立 GitHub 仓 + 配 GH_TOKEN)。
+CI build 时需 GHA workflow 单独 clone cast-builtin-agents 仓进 build context (lead 后续起独立 GitHub 仓 + 配 GH_TOKEN)。
 
 env (FC 函数 env 配):
 
