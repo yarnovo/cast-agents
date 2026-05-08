@@ -48,13 +48,19 @@ def test_cast_tools_registered_on_import():
 
 
 def test_lifespan_invokes_builtin_sync(monkeypatch):
-    """启动 lifespan 必调 sync_all_builtin · 拿 settings.api_base_url + 仓内 builtin-agents 目录"""
+    """启动 lifespan 必调 sync_all_builtin · 拿 settings.api_base_url + akong/builtin-agents 目录 + consumer=cast"""
     captured: dict = {}
 
-    def fake_sync(api_base_url, builtin_dir):
+    def fake_sync(api_base_url, builtin_dir, *, consumer=None):
         captured["api_base_url"] = api_base_url
         captured["builtin_dir"] = builtin_dir
-        return {"synced": ["ag_builtin_x"], "skipped": [], "errors": []}
+        captured["consumer"] = consumer
+        return {
+            "synced": ["ag_builtin_x"],
+            "skipped": [],
+            "errors": [],
+            "filtered": [],
+        }
 
     import cast_agents.main as main_mod
 
@@ -64,8 +70,10 @@ def test_lifespan_invokes_builtin_sync(monkeypatch):
         r = client.get("/health")
         assert r.status_code == 200
     assert captured["api_base_url"]
-    assert captured["builtin_dir"].name == "builtin-agents"
+    # 新真源目录名 = builtin-agents (akong/builtin-agents) 或 akong-builtin-agents (容器内)
+    assert captured["builtin_dir"].name in ("builtin-agents", "akong-builtin-agents")
     assert captured["builtin_dir"].exists()
+    assert captured["consumer"] == "cast"
 
 
 def test_tick_endpoint_calls_harness(monkeypatch):

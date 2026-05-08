@@ -1,4 +1,7 @@
-"""启动时扫 builtin-agents/*.yaml · upsert 到 cast-api agents 表
+"""启动时扫 akong/builtin-agents/*.yaml · upsert 到 cast-api agents 表
+
+builtin-agents 真源 = ~/.claude/repos/akong/builtin-agents/ (跨平台共享)
+本仓 (cast/agents) 是消费方 · 通过 env AKONG_BUILTIN_AGENTS_DIR 拿到目录路径。
 
 MVP 简化:
   - meta 跟普通 builtin 都同步 · meta 用 owner_id=u01 单例 (不 per-user · 等真人多用户后再切)
@@ -12,6 +15,11 @@ MVP 简化:
     201 = 新建成功 · 409 = 已存在 (跳过)
   - POST /api/agents/{id}/services?owner_id=<oid>  · 每个 yaml services 项一调
   - POST /api/agents/{id}/tools/{tool_id}          · 每个 yaml tools 项一调
+
+跨平台过滤 (consumers 字段):
+  - yaml 显式声明 `consumers: [cast]` 或 `consumers: [cast, bilibili]` 时 · 只在该平台 sync
+  - 没声明 = 全平台共享 (默认全部 sync)
+  - 调用方传 consumer="cast" / "bilibili" 过滤
 """
 
 from __future__ import annotations
@@ -124,16 +132,51 @@ def sync_one(yaml_data: dict[str, Any], client: httpx.Client) -> tuple[str, str]
     return agent_id, "created"
 
 
-def sync_all_builtin(api_base_url: str, builtin_dir: Path) -> dict[str, Any]:
+def _yaml_targets_consumer(yaml_data: dict[str, Any], consumer: str | None) -> bool:
+    """判断 yaml 是否 target 当前 consumer 平台。
+
+    consumers 字段语义:
+      - 缺省 / None  → 全平台共享 (任何 consumer 都 sync)
+      - 列表 [a, b]  → 仅 consumer 在列表内时 sync
+      - 单值字符串 (老写法) → 视作单元素列表 (兼容 metadata.consumer)
+
+    consumer=None 时跳过过滤 (sync 全部 yaml)。
+    """
+    if consumer is None:
+        return True
+    consumers = yaml_data.get("consumers")
+    if consumers is None:
+        # fallback: metadata.consumer 老字段 (向后兼容 · 单值字符串)
+        meta_consumer = (yaml_data.get("metadata") or {}).get("consumer")
+        if meta_consumer is None:
+            return True  # 没声明 = 全平台共享
+        consumers = [meta_consumer] if isinstance(meta_consumer, str) else list(meta_consumer)
+    if isinstance(consumers, str):
+        consumers = [consumers]
+    return consumer in consumers
+
+
+def sync_all_builtin(
+    api_base_url: str,
+    builtin_dir: Path,
+    consumer: str | None = None,
+) -> dict[str, Any]:
     """扫 builtin-agents/*.yaml · 调 cast-api upsert
 
-    返 {synced: list[str], skipped: list[str], errors: list[(slug, error)]}
+    Args:
+      api_base_url  cast-api endpoint
+      builtin_dir   ~/.claude/repos/akong/builtin-agents/ (或容器内 mount 路径)
+      consumer      平台标识 (例 "cast" / "bilibili") · 过滤 yaml `consumers:` 字段
+                    None = 不过滤 (sync 全部 · 用于 dev / 测试)
 
-    synced  · 本次新建的 agent_id
-    skipped · 已存在的 agent_id
-    errors  · (slug, error message) tuple list · 不抛异常 (启动钩子不能阻止 lifespan)
+    返 {synced: list[str], skipped: list[str], errors: list[(slug, error)], filtered: list[str]}
+
+    synced   · 本次新建的 agent_id
+    skipped  · 已存在的 agent_id
+    errors   · (slug, error message) tuple list · 不抛异常 (启动钩子不能阻止 lifespan)
+    filtered · consumers 字段不含 consumer · 跳过的 slug
     """
-    result: dict[str, Any] = {"synced": [], "skipped": [], "errors": []}
+    result: dict[str, Any] = {"synced": [], "skipped": [], "errors": [], "filtered": []}
 
     yaml_files = sorted(builtin_dir.glob("*.yaml"))
     if not yaml_files:
@@ -147,6 +190,9 @@ def sync_all_builtin(api_base_url: str, builtin_dir: Path) -> dict[str, Any]:
                 yaml_data = _load_yaml(yaml_path)
                 if not yaml_data or not yaml_data.get("slug"):
                     result["errors"].append((slug, "missing slug field"))
+                    continue
+                if not _yaml_targets_consumer(yaml_data, consumer):
+                    result["filtered"].append(slug)
                     continue
                 agent_id, status = sync_one(yaml_data, client)
                 if status == "created":

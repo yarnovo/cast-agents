@@ -19,7 +19,20 @@ from cast_agents.builtin_sync import sync_all_builtin, sync_one
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-BUILTIN_DIR = REPO_ROOT / "builtin-agents"
+# builtin-agents 真源不在本仓 · 在跨平台层 ~/.claude/repos/akong/builtin-agents
+# 单测 fallback 顺序:
+#  1) env AKONG_BUILTIN_AGENTS_DIR (CI 配)
+#  2) ~/.claude/repos/akong/builtin-agents (dev 本地 sibling)
+#  3) <repo>/akong-builtin-agents (build context 临时副本)
+import os as _os
+
+_env_dir = _os.environ.get("AKONG_BUILTIN_AGENTS_DIR")
+if _env_dir and Path(_env_dir).exists():
+    BUILTIN_DIR = Path(_env_dir)
+else:
+    _dev_dir = Path.home() / ".claude" / "repos" / "akong" / "builtin-agents"
+    _build_dir = REPO_ROOT / "akong-builtin-agents"
+    BUILTIN_DIR = _dev_dir if _dev_dir.exists() else _build_dir
 
 
 def _make_handler(routes: dict[tuple[str, str], httpx.Response]) -> httpx.MockTransport:
@@ -201,4 +214,47 @@ def test_sync_all_builtin_empty_dir_returns_empty_result(tmp_path: Path):
     empty = tmp_path / "empty-dir"
     empty.mkdir()
     result = sync_all_builtin("http://test", empty)
-    assert result == {"synced": [], "skipped": [], "errors": []}
+    assert result == {"synced": [], "skipped": [], "errors": [], "filtered": []}
+
+
+def test_sync_all_builtin_filters_by_consumer(tmp_path: Path):
+    """yaml 显式声明 consumers · 不在列表的 consumer 跳过 (进 filtered)"""
+    d = tmp_path / "mixed"
+    d.mkdir()
+    # cast-only yaml
+    (d / "cast-only.yaml").write_text(
+        "slug: cast-only\nname: cast-only\nrole: normal\nowner_id: u01\nconsumers: [cast]\n",
+        encoding="utf-8",
+    )
+    # bilibili-only yaml (cast 跳过)
+    (d / "bili-only.yaml").write_text(
+        "slug: bili-only\nname: bili-only\nrole: normal\nowner_id: u01\nconsumers: [bilibili]\n",
+        encoding="utf-8",
+    )
+    # 共享 yaml (consumers 缺省 = 全平台)
+    (d / "shared.yaml").write_text(
+        "slug: shared\nname: shared\nrole: normal\nowner_id: u01\n",
+        encoding="utf-8",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(201, json={"id": "x"})
+
+    import cast_agents.builtin_sync as mod
+
+    orig_client = httpx.Client
+
+    def patched_client(*args, **kwargs):
+        kwargs["transport"] = httpx.MockTransport(handler)
+        return orig_client(*args, **kwargs)
+
+    mod.httpx.Client = patched_client  # type: ignore[assignment]
+    try:
+        result = sync_all_builtin("http://test", d, consumer="cast")
+    finally:
+        mod.httpx.Client = orig_client  # type: ignore[assignment]
+
+    # cast-only + shared 通过 · bili-only 进 filtered
+    assert "bili-only" in result["filtered"]
+    assert len(result["filtered"]) == 1
+    assert len(result["synced"]) == 2  # cast-only + shared 都 sync

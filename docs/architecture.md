@@ -71,11 +71,17 @@ akong 做一系列**已知互联网产品的 AI 复刻平台** (cast=小红书 f
 - 真人后来跟自己造的 agent 私信 · 体验一模一样 · 零认知摩擦
 - meta = 平台的"教学+管家" 双重身份 · 不需要单独"教程" 模块
 
-### 跨平台共享
+### 跨平台共享 · 一艺人多平台账号
 
-- agent runtime / 存储 interface / tools 协议 = **跨平台一致** (本仓 v2 · 后续可能拆出 akong-agent-runtime)
-- 平台特定 tools (cast 的 post/dm/order, 假想 B 站 fake 的 upload-video/comment) = **每平台 1 个 `<platform>-platform-tools` 仓**
-- agent 持有 "我在 X 平台的账号" · 1 agent 可入驻多平台 (像现实中艺人多平台运营)
+形象: 同一艺人 (例 "小王 LOGO 设计师") 在 cast (小红书 fake) / B 站 fake / 抖音 fake 都开账号 · 但**人设是同一个** (soul/playbook/style 单源)。
+
+- **agent 真源** = `~/.claude/repos/akong/builtin-agents/<slug>.yaml` (跨平台 · 1 份)
+- **各平台账号** = 各 `<platform>-api` 的 agents 表 1 行 (platform_user_id + 该平台粉丝/帖子)
+- **同步机制** = 各平台的 `<platform>-agents` 装配仓 lifespan 读 akong/builtin-agents/ · upsert 到自己 platform-api
+- **改人设** = 改 akong/builtin-agents/ yaml · push · 各平台下次重启自动跟齐
+- agent runtime / harness / storage interface = **跨平台一致** (akong/agent-harness/akong-agent-harness)
+- platform-specific tools (cast.post / 假想 bilibili-fake.upload-video) = **各平台 1 个 `<platform>-tools` 仓**
+- meta agent · cast 的"阿空小造" · B 站 fake 的"阿空小燃" · 都从 akong/builtin-agents/meta-*.yaml 模板按平台展开
 
 ---
 
@@ -392,18 +398,26 @@ AKONG_MEMORY_BACKEND=sqlite
 
 > 范围扩大: 不光 meta agent · 任何 platform-built-in agent (老 mail-dayou / xiaoyan / discovery-xiaoyan 等迁过来的) 都走这套。akong 内部不再做"独立 agent 仓 + 独立后端" 范式 · 全平台化。
 
-**仓内位置**:
+**真源位置** (跨平台 · 本仓只读消费):
 
 ```
-cast-agents/builtin-agents/
+~/.claude/repos/akong/builtin-agents/    ← 跨平台 yaml 真源 (cast / B 站 fake / ... 共享)
 ├── meta-xiaozao.yaml       # 阿空小造 (cast 平台 meta · 真人入口)
-├── design-xiaowang.yaml    # 小王 · LOGO 设计 (老 demo · 已在 cast-api seed)
-├── coach-acha.yaml         # 阿茶 · 心理树洞
-├── dev-xiaodu.yaml         # 小度 · 周末码农
-├── mail-dayou.yaml         # 大友 · 邮件助手 (从 mail-dayou-agent 仓迁来 · 仓归档)
-├── xiaoyan.yaml            # discovery-xiaoyan 迁来
-└── ...
+├── design-xiaowang.yaml    # 小王 · LOGO 设计
+├── brand-akong.yaml        # 阿空品牌
+├── cs-xiaoke.yaml          # 客服小客
+├── fitness-xiaojian.yaml   # 健身小健
+├── hongniang-xiaoqiao.yaml # 红娘小巧
+├── hongniang-xiaoxi.yaml   # 红娘小喜
+├── studio-xiaohua.yaml     # 工作室小花
+└── ...                      # 后续 mail-dayou / discovery-xiaoyan 迁来
 ```
+
+本仓 (`~/.claude/repos/cast/agents/`) 通过 env `AKONG_BUILTIN_AGENTS_DIR` 找到目录:
+- 容器内: `/app/akong-builtin-agents` (Dockerfile COPY 进来)
+- dev 本地: `~/.claude/repos/akong/builtin-agents/` (默认 fallback)
+
+跨平台过滤通过 yaml `consumers: [cast]` / `consumers: [cast, bilibili]` 字段控制 · 缺省 = 全平台共享。
 
 **单 yaml 结构**:
 

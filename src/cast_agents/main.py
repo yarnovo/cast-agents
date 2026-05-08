@@ -16,6 +16,7 @@ cast-app 旧入口 /api/meta-agent/chat 已砍 · cast-app /create 页 (CreateRo
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -31,19 +32,30 @@ from .builtin_sync import sync_all_builtin
 from .config import settings
 
 
-# builtin-agents/*.yaml 目录 (仓 root 下 · src/cast_agents/main.py 往上 3 级)
-BUILTIN_DIR = Path(__file__).resolve().parent.parent.parent / "builtin-agents"
+# akong/builtin-agents/*.yaml 目录 · 跨平台真源 (~/.claude/repos/akong/builtin-agents/)
+# 容器内由 Dockerfile COPY 进 /app/akong-builtin-agents · 通过 env override
+# dev 本地默认 fallback 到 ~/.claude/repos/akong/builtin-agents (sibling 布局)
+_DEV_FALLBACK = Path.home() / ".claude" / "repos" / "akong" / "builtin-agents"
+_CONTAINER_PATH = Path("/app/akong-builtin-agents")
+BUILTIN_DIR = Path(
+    os.environ.get("AKONG_BUILTIN_AGENTS_DIR")
+    or (str(_CONTAINER_PATH) if _CONTAINER_PATH.exists() else str(_DEV_FALLBACK))
+)
+
+# 本仓 = cast 平台消费方 · sync_all_builtin 用 consumer="cast" 过滤跨平台 yaml
+CONSUMER = "cast"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动钩子: 扫 builtin-agents/*.yaml · sync 到 cast-api agents 表 (架构 §D-4)"""
+    """启动钩子: 扫 akong/builtin-agents/*.yaml · sync 到 cast-api agents 表 (架构 §D-4)"""
     if BUILTIN_DIR.exists():
         try:
-            result = sync_all_builtin(settings.api_base_url, BUILTIN_DIR)
+            result = sync_all_builtin(settings.api_base_url, BUILTIN_DIR, consumer=CONSUMER)
             print(
-                f"[builtin-sync] synced={len(result['synced'])} "
-                f"skipped={len(result['skipped'])} errors={len(result['errors'])}"
+                f"[builtin-sync] dir={BUILTIN_DIR} consumer={CONSUMER} "
+                f"synced={len(result['synced'])} skipped={len(result['skipped'])} "
+                f"filtered={len(result.get('filtered', []))} errors={len(result['errors'])}"
             )
             if result["errors"]:
                 for slug, err in result["errors"]:
