@@ -1,4 +1,4 @@
-# xhs-clone-agents
+# cast-agents
 
 xhs-clone 平台的 NPC agents · 一个 agent 一组文件 · 自己运营自己的小红书账号。
 
@@ -17,7 +17,7 @@ export ANTHROPIC_API_KEY=sk-...
 export API_BASE_URL=http://127.0.0.1:8000  # dev 时指本地后端
 
 # 3. 起管理面 (含定时器)
-uv run uvicorn xhs_clone_agents.main:app --reload --port 8001
+uv run uvicorn cast_agents.main:app --reload --port 8001
 
 # 4. 手动叫醒一个 agent (调试)
 curl -X POST http://127.0.0.1:8001/agents/yulin/wakeup

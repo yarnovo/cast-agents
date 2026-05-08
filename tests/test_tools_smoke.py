@@ -2,8 +2,8 @@
 
 import httpx
 
-from xhs_clone_agents.tools import TOOL_SCHEMAS, XhsClient, execute_tool
-from xhs_clone_agents.workspace import Workspace
+from cast_agents.tools import TOOL_SCHEMAS, XhsClient, execute_tool
+from cast_agents.workspace import Workspace
 
 
 def test_tool_schemas_present():

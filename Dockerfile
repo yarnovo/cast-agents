@@ -17,4 +17,4 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "xhs_clone_agents.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "cast_agents.main:app", "--host", "0.0.0.0", "--port", "8000"]

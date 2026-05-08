@@ -1,6 +1,6 @@
 """meta-agent 不调真 LLM (集成测试 · 留 sk + 后端在线时跑)"""
 
-from xhs_clone_agents.meta import META_TOOLS, SYSTEM_PROMPT
+from cast_agents.meta import META_TOOLS, SYSTEM_PROMPT
 
 
 def test_meta_tools_schema():

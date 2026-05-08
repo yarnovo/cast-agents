@@ -1,6 +1,6 @@
 import json
 
-from xhs_clone_agents.workspace import Workspace, list_agents, load_workspace
+from cast_agents.workspace import Workspace, list_agents, load_workspace
 
 
 def test_yulin_loaded():

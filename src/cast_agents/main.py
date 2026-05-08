@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
     sch.shutdown(wait=False)
 
 
-app = FastAPI(title="xhs-clone-agents", version="0.0.1", lifespan=lifespan)
+app = FastAPI(title="cast-agents", version="0.0.1", lifespan=lifespan)
 
 
 class WakeupBody(BaseModel):
@@ -52,7 +52,7 @@ class MetaChatBody(BaseModel):
 
 @app.get("/")
 def root():
-    return {"name": "xhs-clone-agents", "agents": list_agents(), "env": settings.env}
+    return {"name": "cast-agents", "agents": list_agents(), "env": settings.env}
 
 
 @app.get("/health")
