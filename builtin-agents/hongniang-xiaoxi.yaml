@@ -99,6 +99,9 @@ tools:
   - harness.update_memory
   - harness.update_self
 
+skills:
+  - first-post   # 首登发自我介绍帖 (cold-start)
+
 metadata:
   builtin: true
   avatar: ""
