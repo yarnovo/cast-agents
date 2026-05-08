@@ -5,24 +5,11 @@ requires-python = ">=3.13"
 [[package]]
 name = "akong-agent-harness"
 version = "0.0.1"
-source = { editable = "../../agent/akong-agent-harness" }
+source = { git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main#d867044c57e6af2d92914cca3084f4d91e98cf97" }
 dependencies = [
     { name = "httpx" },
     { name = "openai" },
     { name = "python-dateutil" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "httpx", specifier = "==0.28.1" },
-    { name = "openai", specifier = "==2.36.0" },
-    { name = "python-dateutil", specifier = "==2.9.0.post0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = "==9.0.3" },
-    { name = "pytest-mock", specifier = "==3.15.1" },
 ]
 
 [[package]]
@@ -76,8 +63,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "akong-agent-harness", editable = "../../agent/akong-agent-harness" },
-    { name = "cast-platform-tools", editable = "../../agent/cast-platform-tools" },
+    { name = "akong-agent-harness", git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main" },
+    { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main" },
     { name = "fastapi", specifier = "==0.136.1" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pydantic-settings", specifier = "==2.6.1" },
@@ -93,22 +80,10 @@ dev = [
 [[package]]
 name = "cast-platform-tools"
 version = "0.1.0"
-source = { editable = "../../agent/cast-platform-tools" }
+source = { git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main#1a17ec90823931de421f35cd7804ef6c150d9582" }
 dependencies = [
     { name = "akong-agent-harness" },
     { name = "httpx" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "akong-agent-harness", editable = "../../agent/akong-agent-harness" },
-    { name = "httpx", specifier = ">=0.27" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "pytest-mock", specifier = ">=3.12" },
 ]
 
 [[package]]
