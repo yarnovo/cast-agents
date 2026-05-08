@@ -11,6 +11,7 @@ dependencies = [
     "akong-memory @ git+https://github.com/yarnovo/akong-memory.git@main",
     "akong-tools @ git+https://github.com/yarnovo/akong-tools.git@main",
     "akong-skills @ git+https://github.com/yarnovo/akong-skills.git@main",
+    "akong-hermes @ git+https://github.com/yarnovo/akong-hermes.git@main",
     "cast-platform-tools @ git+https://github.com/yarnovo/cast-platform-tools.git@main",
     "meta-hermes @ git+https://github.com/yarnovo/meta-hermes.git@main",
     "fastapi==0.136.1",
