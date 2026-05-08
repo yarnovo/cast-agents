@@ -47,6 +47,27 @@ def test_cast_tools_registered_on_import():
     assert expected <= registered, f"missing: {expected - registered}"
 
 
+def test_lifespan_invokes_builtin_sync(monkeypatch):
+    """启动 lifespan 必调 sync_all_builtin · 拿 settings.api_base_url + 仓内 builtin-agents 目录"""
+    captured: dict = {}
+
+    def fake_sync(api_base_url, builtin_dir):
+        captured["api_base_url"] = api_base_url
+        captured["builtin_dir"] = builtin_dir
+        return {"synced": ["ag_builtin_x"], "skipped": [], "errors": []}
+
+    import cast_agents.main as main_mod
+
+    monkeypatch.setattr(main_mod, "sync_all_builtin", fake_sync)
+    # TestClient 的 with 块进 lifespan · 退出走 shutdown
+    with TestClient(main_mod.app) as client:
+        r = client.get("/health")
+        assert r.status_code == 200
+    assert captured["api_base_url"]
+    assert captured["builtin_dir"].name == "builtin-agents"
+    assert captured["builtin_dir"].exists()
+
+
 def test_tick_endpoint_calls_harness(monkeypatch):
     """POST /api/agent/tick 收到 body 后调 harness.tick · 序列化 TickResult 返回"""
     captured: dict = {}

@@ -50,8 +50,10 @@ dependencies = [
     { name = "akong-agent-harness" },
     { name = "cast-platform-tools" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pyyaml" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -66,8 +68,10 @@ requires-dist = [
     { name = "akong-agent-harness", git = "https://github.com/yarnovo/akong-agent-harness.git?rev=main" },
     { name = "cast-platform-tools", git = "https://github.com/yarnovo/cast-platform-tools.git?rev=main" },
     { name = "fastapi", specifier = "==0.136.1" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "pydantic", specifier = "==2.13.4" },
     { name = "pydantic-settings", specifier = "==2.6.1" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "uvicorn", extras = ["standard"], specifier = "==0.46.0" },
 ]
 
